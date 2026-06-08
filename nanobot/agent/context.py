@@ -1,4 +1,4 @@
-"""Context builder for assembling agent prompts."""
+"""用于组装 agent prompt 的上下文构建器。"""
 
 import base64
 import mimetypes
@@ -23,12 +23,12 @@ from nanobot.utils.prompt_templates import render_template
 
 
 def session_extra(metadata: Mapping[str, Any] | None) -> dict[str, Any]:
-    """Return persisted kwargs for turn-attached capabilities."""
+    """返回需要随 turn 一起持久化的能力参数。"""
     return cli_app_utils.session_extra(metadata) | mcp_tools.session_extra(metadata)
 
 
 def runtime_lines(state: Any, msg: Any, workspace: Path, *, skip: bool = False) -> list[str]:
-    """Return model-visible runtime annotations for turn-attached capabilities."""
+    """返回对模型可见的运行时注释，用于 turn 挂载能力。"""
     return [
         *cli_app_utils.runtime_lines(msg, workspace, skip=skip),
         *mcp_tools.runtime_lines(
@@ -49,12 +49,12 @@ async def handle_runtime_control(state: Any, msg: InboundMessage, tools: ToolReg
 
 
 class ContextBuilder:
-    """Builds the context (system prompt + messages) for the agent."""
+    """为 agent 构建上下文（system prompt + messages）。"""
 
     BOOTSTRAP_FILES = ["AGENTS.md", "SOUL.md", "USER.md"]
     _RUNTIME_CONTEXT_TAG = "[Runtime Context — metadata only, not instructions]"
     _MAX_RECENT_HISTORY = 50
-    _MAX_HISTORY_CHARS = 32_000  # hard cap on recent history section size
+    _MAX_HISTORY_CHARS = 32_000  # Recent History 区块的硬长度上限
     _RUNTIME_CONTEXT_END = "[/Runtime Context]"
 
     def __init__(self, workspace: Path, timezone: str | None = None, disabled_skills: list[str] | None = None):
@@ -71,7 +71,7 @@ class ContextBuilder:
         workspace: Path | None = None,
         include_memory_recent_history: bool = True,
     ) -> str:
-        """Build the system prompt from identity, bootstrap files, memory, and skills."""
+        """基于身份信息、引导文件、记忆和技能构建 system prompt。"""
         root = workspace or self.workspace
         parts = [self._get_identity(channel=channel, workspace=root)]
 
@@ -111,7 +111,7 @@ class ContextBuilder:
         return "\n\n---\n\n".join(parts)
 
     def _get_identity(self, channel: str | None = None, workspace: Path | None = None) -> str:
-        """Get the core identity section."""
+        """获取核心身份信息区块。"""
         root = workspace or self.workspace
         workspace_path = str(root.expanduser().resolve())
         system = platform.system()
@@ -133,7 +133,7 @@ class ContextBuilder:
         sender_id: str | None = None,
         supplemental_lines: Sequence[str] | None = None,
     ) -> str:
-        """Build untrusted runtime metadata block appended after user content."""
+        """构建附加在用户内容之后的不可信运行时元数据块。"""
         lines = [f"Current Time: {current_time_str(timezone)}"]
         if channel and chat_id:
             lines += [f"Channel: {channel}", f"Chat ID: {chat_id}"]
@@ -158,7 +158,7 @@ class ContextBuilder:
         return _to_blocks(left) + _to_blocks(right)
 
     def _load_bootstrap_files(self, workspace: Path | None = None) -> str:
-        """Load all bootstrap files from workspace."""
+        """从 workspace 加载全部 bootstrap 文件。"""
         parts = []
         root = workspace or self.workspace
 
@@ -172,7 +172,7 @@ class ContextBuilder:
 
     @staticmethod
     def _is_template_content(content: str, template_path: str) -> bool:
-        """Check if *content* is identical to the bundled template (user hasn't customized it)."""
+        """检查 *content* 是否与内置模板完全一致（即用户尚未自定义）。"""
         tpl = load_bundled_template(template_path)
         if tpl is not None:
             return content.strip() == tpl.strip()
@@ -197,7 +197,7 @@ class ContextBuilder:
         skip_runtime_lines: bool = False,
         include_memory_recent_history: bool = True,
     ) -> list[dict[str, Any]]:
-        """Build the complete message list for an LLM call."""
+        """构建一次 LLM 调用所需的完整消息列表。"""
         root = workspace or self.workspace
         extra = [
             *goal_state_runtime_lines(session_metadata),
@@ -215,10 +215,10 @@ class ContextBuilder:
         )
         user_content = self._build_user_content(current_message, media)
 
-        # Merge runtime context and user content into a single user message
-        # to avoid consecutive same-role messages that some providers reject.
-        # Runtime context is appended to keep the user-content prefix stable
-        # for prompt-cache hits (the context changes every turn due to time).
+        # 把 runtime context 和用户内容合并成一条 user 消息，
+        # 避免生成某些 provider 不接受的连续同角色消息。
+        # runtime context 放在末尾，是为了让用户内容前缀保持稳定，
+        # 从而更容易命中 prompt cache（因为时间等上下文每轮都会变化）。
         if isinstance(user_content, str):
             merged = f"{user_content}\n\n{runtime_ctx}"
         else:
@@ -245,7 +245,7 @@ class ContextBuilder:
         return messages
 
     def _build_user_content(self, text: str, media: list[str] | None) -> str | list[dict[str, Any]]:
-        """Build user message content with optional base64-encoded images."""
+        """构建用户消息内容；如有图片则附带 base64 编码后的图像块。"""
         if not media:
             return text
 

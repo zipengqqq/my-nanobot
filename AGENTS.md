@@ -1,5 +1,23 @@
 This file provides guidance to AI coding agents working with this repository.
 
+## Agent Learning Workflow
+
+When the user is working on the local "mini agent" learning project derived from `nanobot`,
+the agent must read these files before proposing architecture, writing code, or continuing
+implementation work:
+
+- [`docs/agent-learning/START_HERE.md`](./docs/agent-learning/START_HERE.md)
+- [`docs/agent-learning/architecture-map.md`](./docs/agent-learning/architecture-map.md)
+- [`docs/agent-learning/build-plan.md`](./docs/agent-learning/build-plan.md)
+- [`docs/agent-learning/progress-log.md`](./docs/agent-learning/progress-log.md)
+
+Rules for that workflow:
+
+1. Treat those files as the source of truth for the current learning/build direction.
+2. Do not improvise a different architecture unless the user explicitly asks to revise the plan.
+3. Before starting a new phase, confirm which phase in `build-plan.md` is currently active.
+4. After completing a meaningful step, update `progress-log.md` so a fresh session can resume safely.
+
 ## Project Overview
 
 nanobot is a lightweight, open-source AI agent framework written in Python with a React/TypeScript WebUI. It centers around a small agent loop that receives messages from chat channels, invokes an LLM provider, executes tools, and manages session memory.

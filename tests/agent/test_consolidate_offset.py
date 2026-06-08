@@ -104,7 +104,7 @@ class TestSessionImmutableHistory:
         assert session.messages[0]["content"] == "msg1"
 
     def test_get_history_returns_most_recent(self) -> None:
-        """Test get_history returns the most recent messages."""
+        """测试 get_history 会返回最新的消息列表"""
         session = Session(key="test:history")
         for i in range(10):
             session.add_message("user", f"msg{i}")

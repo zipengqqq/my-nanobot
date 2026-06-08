@@ -1,4 +1,4 @@
-"""Tool registry for dynamic tool management."""
+"""用于动态管理工具的注册表。"""
 
 from typing import Any
 
@@ -7,9 +7,9 @@ from nanobot.agent.tools.base import Tool
 
 class ToolRegistry:
     """
-    Registry for agent tools.
+    agent 工具注册表。
 
-    Allows dynamic registration and execution of tools.
+    支持工具的动态注册、查询与执行。
     """
 
     def __init__(self):
@@ -17,26 +17,26 @@ class ToolRegistry:
         self._cached_definitions: list[dict[str, Any]] | None = None
 
     def register(self, tool: Tool) -> None:
-        """Register a tool."""
+        """注册一个工具。"""
         self._tools[tool.name] = tool
         self._cached_definitions = None
 
     def unregister(self, name: str) -> None:
-        """Unregister a tool by name."""
+        """按名称注销一个工具。"""
         self._tools.pop(name, None)
         self._cached_definitions = None
 
     def get(self, name: str) -> Tool | None:
-        """Get a tool by name."""
+        """按名称获取工具。"""
         return self._tools.get(name)
 
     def has(self, name: str) -> bool:
-        """Check if a tool is registered."""
+        """检查某个工具是否已注册。"""
         return name in self._tools
 
     @staticmethod
     def _schema_name(schema: dict[str, Any]) -> str:
-        """Extract a normalized tool name from either OpenAI or flat schemas."""
+        """从 OpenAI 风格或扁平 schema 中提取规范化后的工具名。"""
         fn = schema.get("function")
         if isinstance(fn, dict):
             name = fn.get("name")
@@ -46,11 +46,10 @@ class ToolRegistry:
         return name if isinstance(name, str) else ""
 
     def get_definitions(self) -> list[dict[str, Any]]:
-        """Get tool definitions with stable ordering for cache-friendly prompts.
+        """按稳定顺序返回工具定义，便于 prompt cache 命中。
 
-        Built-in tools are sorted first as a stable prefix, then MCP tools are
-        sorted and appended.  The result is cached until the next
-        register/unregister call.
+        内建工具会先排序，形成稳定前缀；MCP 工具随后排序并追加。
+        结果会缓存，直到下一次 register/unregister 调用才失效。
         """
         if self._cached_definitions is not None:
             return self._cached_definitions
@@ -75,8 +74,8 @@ class ToolRegistry:
         name: str,
         params: dict[str, Any],
     ) -> tuple[Tool | None, dict[str, Any], str | None]:
-        """Resolve, cast, and validate one tool call."""
-        # Guard against invalid parameter types (e.g., list instead of dict)
+        """解析、类型转换并校验一次工具调用。"""
+        # 防御非法参数类型，例如把 list 错传成 dict。
         if not isinstance(params, dict) and name in ('write_file', 'read_file'):
             return None, params, (
                 f"Error: Tool '{name}' parameters must be a JSON object, got {type(params).__name__}. "
@@ -98,7 +97,7 @@ class ToolRegistry:
         return tool, cast_params, None
 
     async def execute(self, name: str, params: dict[str, Any]) -> Any:
-        """Execute a tool by name with given parameters."""
+        """按名称执行工具，并传入给定参数。"""
         _HINT = "\n\n[Analyze the error above and try a different approach.]"
         tool, params, error = self.prepare_call(name, params)
         if error:
@@ -115,7 +114,7 @@ class ToolRegistry:
 
     @property
     def tool_names(self) -> list[str]:
-        """Get list of registered tool names."""
+        """返回当前已注册的工具名列表。"""
         return list(self._tools.keys())
 
     def __len__(self) -> int:

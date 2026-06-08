@@ -40,3 +40,31 @@
 - 进入 `Phase 0`
 - 创建最小项目骨架
 - 先把目录和类关系搭出来，再逐步填实现
+
+### Phase 0 进展
+
+- 已在 `my_agent/` 下创建最小 CLI agent 骨架。
+- 已建立 `my_agent/.env` 与 `my_agent/.env.example` 配置路径。
+- 当前主链路已经固定为：
+  - `app.py -> AgentLoop -> ContextBuilder -> AgentRunner -> StubProvider`
+- `SessionManager` 当前为内存态实现，先服务于 Phase 0 的单次链路打通。
+- 已添加最小测试，覆盖：
+  - 核心模块可导入
+  - `AgentLoop` 能返回 stub reply 并写入历史
+  - `Settings` 能从 `.env` 读取配置
+  - `build_app()` 能完成依赖装配
+
+### 推荐断点
+
+- `my_agent/app.py`
+- `my_agent/agent/loop.py`
+- `my_agent/agent/context.py`
+- `my_agent/agent/runner.py`
+- `my_agent/agent/provider.py`
+- `my_agent/session/manager.py`
+
+### 下一步
+
+- 进入 `Phase 1`
+- 把 `StubProvider` 替换为真实 OpenAI-compatible provider 调用
+- 保持当前分层不变，只补单轮对话能力

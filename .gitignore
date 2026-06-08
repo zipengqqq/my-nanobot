@@ -97,6 +97,7 @@ nano.*.save
 # Environment & secrets (keep examples tracked if needed)
 .env.*
 !.env.example
+my_agent/.env
 
 # Logs & temp
 *.log

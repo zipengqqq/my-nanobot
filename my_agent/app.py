@@ -5,7 +5,7 @@ from pathlib import Path
 
 from my_agent.agent.context import ContextBuilder
 from my_agent.agent.loop import AgentLoop
-from my_agent.agent.provider import StubProvider
+from my_agent.agent.provider import OpenAICompatProvider
 from my_agent.agent.runner import AgentRunner
 from my_agent.config import Settings
 from my_agent.session.manager import SessionManager
@@ -49,8 +49,12 @@ def build_app(env_file: Path | str | None = None) -> AppState:
     # ToolRegistry 在 Phase 0 只是占位，先把层次结构固定下来。
     tool_registry = ToolRegistry()
 
-    # Provider 暂时用 stub，目的是先打通主链路，不急着接真实模型。
-    provider = StubProvider()
+    # Provider 负责真正调用大模型接口；当前阶段只做单轮文本对话。
+    provider = OpenAICompatProvider(
+        base_url=settings.openai_base_url,
+        api_key=settings.openai_api_key,
+        model=settings.openai_model,
+    )
 
     # ContextBuilder 负责把 system prompt、history、user message 组装成 messages。
     context_builder = ContextBuilder()
@@ -69,7 +73,7 @@ def build_app(env_file: Path | str | None = None) -> AppState:
 
 def run_repl(env_file: Path | str | None = None) -> None:
     app_state = build_app(env_file=env_file)
-    print("my_agent Phase 0 CLI 已启动，输入 quit 或 exit 退出。")
+    print("my_agent Phase 1 CLI 已启动，输入 quit 或 exit 退出。")
 
     while True:
         try:

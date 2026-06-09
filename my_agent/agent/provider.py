@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from typing import Any
 from typing import Protocol
+
+from openai import OpenAI
 
 
 class ProviderAdapter(Protocol):
@@ -10,9 +13,25 @@ class ProviderAdapter(Protocol):
         """根据当前消息列表返回一条 assistant 回复。"""
 
 
-class StubProvider:
-    """Phase 0 阶段的占位 provider，不发起真实网络请求。"""
+class OpenAICompatProvider:
+    """最小 OpenAI-compatible provider，只处理单轮文本回复。"""
+
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        model: str,
+        client: Any | None = None,
+    ) -> None:
+        self._model = model
+        self._client = client or OpenAI(base_url=base_url, api_key=api_key)
 
     def generate(self, messages: list[dict[str, str]]) -> str:
-        _ = messages
-        return "Phase 0 provider stub response"
+        response = self._client.chat.completions.create(
+            model=self._model,
+            messages=messages,
+        )
+        content = response.choices[0].message.content
+        if not content:
+            raise ValueError("模型返回了空内容")
+        return content

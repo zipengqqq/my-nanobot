@@ -2,18 +2,19 @@ from pathlib import Path
 
 from my_agent.agent.context import ContextBuilder
 from my_agent.agent.loop import AgentLoop
-from my_agent.agent.provider import StubProvider
+from my_agent.agent.provider import OpenAICompatProvider
 from my_agent.agent.runner import AgentRunner
 from my_agent.app import build_app
 from my_agent.config import Settings
 from my_agent.session.manager import SessionManager
 from my_agent.tools.registry import ToolRegistry
+from tests.my_agent.fakes import StubProvider
 
 
 def test_phase0_modules_import() -> None:
     assert ContextBuilder is not None
     assert AgentLoop is not None
-    assert StubProvider is not None
+    assert OpenAICompatProvider is not None
     assert AgentRunner is not None
     assert SessionManager is not None
     assert ToolRegistry is not None

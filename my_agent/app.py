@@ -43,8 +43,11 @@ def build_app(env_file: Path | str | None = None) -> AppState:
     # 先把配置读出来，后面的所有组件都依赖这里的参数。
     settings = Settings.from_env_file(env_file)
 
-    # SessionManager 先用内存保存历史；后面 Phase 5 再换成落盘实现。
-    session_manager = SessionManager(history_limit=settings.history_limit)
+    # SessionManager 负责 session 持久化；当前按 session 文件落到本地目录。
+    session_manager = SessionManager(
+        history_limit=settings.history_limit,
+        storage_dir=settings.session_storage_dir,
+    )
 
     # Phase 3 开始接入最小默认工具集，但注册和执行仍留在 ToolRegistry 这一层。
     tool_registry = ToolRegistry.with_defaults()

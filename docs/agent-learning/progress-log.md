@@ -206,3 +206,42 @@
 - 把当前内存态 session history 落到本地文件
 - 重启 CLI 后恢复既有会话
 - 开始区分“运行时状态”和“持久化状态”的边界
+
+### Phase 5 进展
+
+- `SessionManager` 已从纯内存态扩展为“内存缓存 + 本地文件持久化”：
+  - 支持按 `session_id` 懒加载历史
+  - 支持把 session 历史写入本地 JSON 文件
+  - 仍然保持“按最近 N 轮 user turn 裁剪”的语义
+- `ChatMessage` 已补齐序列化 / 反序列化能力，能够保留：
+  - `role`
+  - `content`
+  - `tool_calls`
+  - `tool_call_id`
+- `build_app()` 现在会把 `MY_AGENT_SESSION_STORAGE_DIR` 注入 `SessionManager`。
+- 默认 session 存储目录已固定为：
+  - `my_agent/storage/sessions/`
+
+### 当前理解
+
+- `Phase 5` 的关键不是“把数据写到磁盘”这么简单，而是要保证“落盘后的历史仍然是可回放给模型的合法消息序列”。
+- 一旦进入 `Phase 4` 的 tool loop，持久化层就必须完整保留 `assistant/tool` 结构化消息；否则重启后的 session 无法正确恢复上下文。
+- `AgentLoop` 和 `AgentRunner` 在这一阶段不需要知道任何文件路径或 JSON 细节，说明当前分层仍然健康。
+
+### 已完成验证
+
+- `pytest tests/my_agent/test_phase5.py -q` 通过。
+- `pytest tests/my_agent/test_phase0.py tests/my_agent/test_phase1.py tests/my_agent/test_phase2.py tests/my_agent/test_phase3.py tests/my_agent/test_phase4.py tests/my_agent/test_phase5.py -q` 通过。
+- `tests/my_agent/test_phase5.py` 已覆盖：
+  - tool loop 历史的持久化与重载
+  - `build_app()` 重建后继续既有 session history
+
+### 下一步
+
+- 进入 `Phase 6`
+- 把 `my_agent` 当前实现和 `nanobot` 原仓库逐层对照
+- 明确哪些复杂度仍未进入最小实现：
+  - skills / instruction loading
+  - subagent / task orchestration
+  - 长期 memory / compaction
+  - MCP / 外部工具生态

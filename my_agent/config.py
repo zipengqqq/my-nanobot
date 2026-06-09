@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 DEFAULT_ENV_FILE = Path(__file__).resolve().with_name(".env")
+DEFAULT_SESSION_STORAGE_DIR = Path(__file__).resolve().parent / "storage" / "sessions"
 
 
 class Settings(BaseSettings):
@@ -23,6 +24,10 @@ class Settings(BaseSettings):
     openai_model: str = Field(validation_alias="OPENAI_MODEL")
     session_id: str = Field(validation_alias="MY_AGENT_SESSION_ID")
     history_limit: int = Field(validation_alias="MY_AGENT_HISTORY_LIMIT")
+    session_storage_dir: Path = Field(
+        default=DEFAULT_SESSION_STORAGE_DIR,
+        validation_alias="MY_AGENT_SESSION_STORAGE_DIR",
+    )
     max_iterations: int = Field(default=6, validation_alias="MY_AGENT_MAX_ITERATIONS")
 
     @classmethod

@@ -123,3 +123,44 @@
 - 进入 `Phase 3`
 - 定义 `Tool` 抽象与 `ToolRegistry` 的最小可用形态
 - 先接入 `read_file`、`list_dir`、`exec` 三个工具中的最小闭环
+
+### Phase 3 进展
+
+- 已扩展 `ToolSchema`，现在工具除了 `name`、`description` 之外，还会暴露最小参数 schema。
+- 已实现 `ToolRegistry` 的最小可用闭环：
+  - 注册工具
+  - 输出 OpenAI-compatible tool schema
+  - 按名称执行工具
+  - 用统一 `ERROR: ...` 格式返回未注册工具或执行异常
+- 已接入 3 个默认工具：
+  - `read_file`
+  - `list_dir`
+  - `exec`
+- `build_app()` 现在会默认装配这 3 个工具。
+- `AgentRunner` 已从“单次纯文本调用”升级为“单次工具调用闭环”：
+  - 第一次请求模型
+  - 如果模型请求一个工具，就交给 `ToolRegistry` 执行
+  - 把 tool call 与 tool result 回填进 messages
+  - 再请求一次模型并返回最终文本
+
+### 当前理解
+
+- `Phase 3` 的重点不是“工具越多越好”，而是先把“schema 暴露”和“运行时分发”分开。
+- 模型侧看到的是 tool schema，运行时真正执行的是 `ToolRegistry.execute()`，这两个视角必须明确拆开。
+- 工具错误不能直接把 Python 异常泄漏出去，至少要先标准化成统一文本结果，这样模型下一跳才能继续消费。
+- 当前 `AgentRunner` 只支持单次 tool call 闭环；连续多次工具调用和迭代上限控制，留到 `Phase 4` 再做。
+
+### 已完成验证
+
+- `pytest tests/my_agent/test_phase0.py tests/my_agent/test_phase1.py tests/my_agent/test_phase2.py tests/my_agent/test_phase3.py -q` 通过。
+- `tests/my_agent/test_phase3.py` 已覆盖：
+  - 单次 tool call -> tool result -> 最终回答
+  - `ToolRegistry` 的标准化错误返回
+  - `build_app()` 默认装配 3 个工具
+
+### 下一步
+
+- 进入 `Phase 4`
+- 把当前单次工具调用分支扩展成真正的 tool loop
+- 为 `AgentRunner` 增加最大迭代次数控制
+- 开始考虑 assistant/tool 消息在最终历史中的保存边界

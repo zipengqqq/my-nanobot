@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
 
 from my_agent.tools.base import Tool
+from my_agent.tools.filesystem_tool import ListDirTool, ReadFileTool
+from my_agent.tools.shell_tool import ExecTool
 
 
 @dataclass
@@ -17,11 +21,40 @@ class ToolRegistry:
     def get(self, name: str) -> Tool | None:
         return self._tools.get(name)
 
-    def list_schemas(self) -> list[dict[str, str]]:
+    def execute(self, name: str, arguments: dict[str, Any]) -> str:
+        """执行某个工具"""
+        tool = self.get(name)
+        if tool is None:
+            return f"ERROR: Tool '{name}' is not registered."
+
+        try:
+            return tool.run(arguments)
+        except Exception as exc:
+            return f"ERROR: Tool '{name}' failed: {exc}"
+
+    def list_schemas(self) -> list[dict[str, Any]]:
+        """返回可以发给模型看的工具定义列表"""
         return [
             {
-                "name": tool.schema.name,
-                "description": tool.schema.description,
+                "type": "function",
+                "function": {
+                    "name": tool.schema.name,
+                    "description": tool.schema.description,
+                    "parameters": tool.schema.parameters,
+                },
             }
             for tool in self._tools.values()
         ]
+
+    @classmethod
+    def with_defaults(cls, root: Path | None = None) -> "ToolRegistry":
+        """
+            之所以写成带引号的 "ToolRegistry"，是因为它在类体内部引用了“当前这个类自己”。
+            这种写法叫前向引用，避免 Python 在解析这个函数签名时，类名还没完全定义好
+        """
+        registry = cls()
+        tool_root = (root or Path.cwd()).resolve()
+        registry.register(ReadFileTool(root=tool_root))
+        registry.register(ListDirTool(root=tool_root))
+        registry.register(ExecTool(root=tool_root))
+        return registry

@@ -1,4 +1,5 @@
 from my_agent.agent.context import ContextBuilder
+from my_agent.agent.provider import ModelResponse
 from my_agent.agent.loop import AgentLoop
 from my_agent.agent.runner import AgentRunner
 from my_agent.session.manager import SessionManager
@@ -10,9 +11,14 @@ class RecordingProvider:
     def __init__(self) -> None:
         self.calls: list[list[dict[str, str]]] = []
 
-    def generate(self, messages: list[dict[str, str]]) -> str:
+    def generate(
+        self,
+        messages: list[dict[str, str]],
+        tools: list[dict[str, object]] | None = None,
+    ) -> ModelResponse:
+        _ = tools
         self.calls.append(messages)
-        return f"reply-{len(self.calls)}"
+        return ModelResponse(text=f"reply-{len(self.calls)}")
 
 
 def test_second_turn_includes_previous_turn_history() -> None:

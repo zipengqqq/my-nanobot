@@ -1,7 +1,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 
-from my_agent.agent.provider import OpenAICompatProvider, ProviderAdapter
+from my_agent.agent.provider import ModelResponse, OpenAICompatProvider, ProviderAdapter
 from my_agent.app import build_app
 
 
@@ -34,14 +34,14 @@ def test_openai_provider_calls_chat_completions_and_returns_text() -> None:
         client=fake_client,
     )
 
-    reply = provider.generate(
+    response = provider.generate(
         [
             {"role": "system", "content": "你是助手"},
             {"role": "user", "content": "你好"},
         ]
     )
 
-    assert reply == "真实模型回复"
+    assert response == ModelResponse(text="真实模型回复")
     assert captured["model"] == "gpt-4o-mini"
     assert captured["messages"][1]["content"] == "你好"
 

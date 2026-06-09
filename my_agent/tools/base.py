@@ -8,8 +8,9 @@ from typing import Any, Protocol
 class ToolSchema:
     """提供给后续模型集成使用的最小工具 schema。"""
 
-    name: str
-    description: str
+    name: str # 工具名字
+    description: str # 工具说明
+    parameters: dict[str, Any] # 工具参数
 
 
 class Tool(Protocol):

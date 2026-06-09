@@ -46,8 +46,8 @@ def build_app(env_file: Path | str | None = None) -> AppState:
     # SessionManager 先用内存保存历史；后面 Phase 5 再换成落盘实现。
     session_manager = SessionManager(history_limit=settings.history_limit)
 
-    # ToolRegistry 在 Phase 0 只是占位，先把层次结构固定下来。
-    tool_registry = ToolRegistry()
+    # Phase 3 开始接入最小默认工具集，但注册和执行仍留在 ToolRegistry 这一层。
+    tool_registry = ToolRegistry.with_defaults()
 
     # Provider 负责真正调用大模型接口；当前阶段只做单轮文本对话。
     provider = OpenAICompatProvider(

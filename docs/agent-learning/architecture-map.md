@@ -232,8 +232,8 @@ mini_agent/
   tools/
     base.py
     registry.py
-    filesystem.py
-    shell.py
+    filesystem_tool.py
+    shell_tool.py
   session/
     manager.py
     models.py

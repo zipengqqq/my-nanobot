@@ -60,7 +60,11 @@ def build_app(env_file: Path | str | None = None) -> AppState:
     context_builder = ContextBuilder()
 
     # AgentRunner 只关心“拿到 messages 以后如何调 provider”。
-    runner = AgentRunner(provider=provider, tool_registry=tool_registry)
+    runner = AgentRunner(
+        provider=provider,
+        tool_registry=tool_registry,
+        max_iterations=settings.max_iterations, # 单轮 agent loop 的最大迭代次数
+    )
 
     # AgentLoop 是总编排层，负责把 session、context、runner 串起来。
     loop = AgentLoop(

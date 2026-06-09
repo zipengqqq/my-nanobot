@@ -164,3 +164,45 @@
 - 把当前单次工具调用分支扩展成真正的 tool loop
 - 为 `AgentRunner` 增加最大迭代次数控制
 - 开始考虑 assistant/tool 消息在最终历史中的保存边界
+
+### Phase 4 进展
+
+- `AgentRunner` 已从单次 tool call 闭环扩展为真正的多轮 tool loop：
+  - 每轮都先请求模型
+  - 如果模型返回 tool call，就执行工具并继续下一轮
+  - 如果模型返回最终文本，就结束本轮执行
+- 已为 `AgentRunner` 增加 `max_iterations`，用于防止模型无限请求工具。
+- 已新增 `RunnerResult`，把本轮最终文本和“本轮新增消息”一起返回给 `AgentLoop`。
+- `AgentLoop` 现在会把一整轮真实消息写入 session：
+  - `user`
+  - `assistant`（tool call）
+  - `tool`
+  - `assistant`（最终文本）
+- `ChatMessage` 已扩展为支持：
+  - `tool_calls`
+  - `tool_call_id`
+- `ContextBuilder` 现在会把这些结构化字段重新还原成模型可消费的 message dict。
+- `SessionManager` 已改为按 `user` 消息切分 turn，再保留最近 N 轮历史，不再假设“一轮只有 2 条消息”。
+- `build_app()` 现在会把 `MY_AGENT_MAX_ITERATIONS` 注入 `AgentRunner`；未配置时默认值为 `6`。
+
+### 当前理解
+
+- `Phase 4` 的关键不是“多跑几次 provider”，而是把“循环执行”和“历史落盘”这两件事拆在正确的层里。
+- `AgentRunner` 负责本轮循环里到底发生了哪些 assistant/tool 消息；`AgentLoop` 只负责把这些结果写进 session。
+- 一旦进入 tool loop，历史裁剪就不能再按固定消息条数做，只能按 user turn 做切分，否则会把一轮对话截成半截。
+- `max_iterations` 本质上是一个安全边界：它不是业务功能，但没有它，agent loop 就没有收敛保证。
+
+### 已完成验证
+
+- `pytest tests/my_agent/test_phase0.py tests/my_agent/test_phase1.py tests/my_agent/test_phase2.py tests/my_agent/test_phase3.py tests/my_agent/test_phase4.py -q` 通过。
+- `tests/my_agent/test_phase4.py` 已覆盖：
+  - 连续多次 tool call 后返回最终答案
+  - assistant/tool 消息写入 session history
+  - 超过 `max_iterations` 时中止 loop
+
+### 下一步
+
+- 进入 `Phase 5`
+- 把当前内存态 session history 落到本地文件
+- 重启 CLI 后恢复既有会话
+- 开始区分“运行时状态”和“持久化状态”的边界

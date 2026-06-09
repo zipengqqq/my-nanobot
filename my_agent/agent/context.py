@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from my_agent.session.models import ChatMessage
 
 
@@ -13,8 +15,8 @@ class ContextBuilder:
         self,
         history: list[ChatMessage],
         user_text: str,
-    ) -> list[dict[str, str]]:
+    ) -> list[dict[str, Any]]:
         messages = [{"role": "system", "content": self._system_prompt}]
-        messages.extend({"role": message.role, "content": message.content} for message in history)
+        messages.extend(message.to_model_message() for message in history)
         messages.append({"role": "user", "content": user_text})
         return messages

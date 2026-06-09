@@ -19,14 +19,10 @@ class AgentLoop:
     def handle_user_message(self, session_id: str, user_text: str) -> str:
         history = self.session_manager.get_history(session_id)
         messages = self.context_builder.build_messages(history=history, user_text=user_text)
-        reply = self.runner.run(messages)
+        result = self.runner.run(messages)
 
-        self.session_manager.append_message(
+        self.session_manager.append_messages(
             session_id,
-            ChatMessage(role="user", content=user_text),
+            [ChatMessage(role="user", content=user_text), *result.new_messages],
         )
-        self.session_manager.append_message(
-            session_id,
-            ChatMessage(role="assistant", content=reply),
-        )
-        return reply
+        return result.final_text

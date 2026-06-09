@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     openai_model: str = Field(validation_alias="OPENAI_MODEL")
     session_id: str = Field(validation_alias="MY_AGENT_SESSION_ID")
     history_limit: int = Field(validation_alias="MY_AGENT_HISTORY_LIMIT")
+    max_iterations: int = Field(default=6, validation_alias="MY_AGENT_MAX_ITERATIONS")
 
     @classmethod
     def from_env_file(cls, env_file: Path | str | None = None) -> "Settings":

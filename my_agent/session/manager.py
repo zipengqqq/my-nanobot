@@ -16,11 +16,20 @@ class SessionManager:
         return list(self._sessions.get(session_id, []))
 
     def append_message(self, session_id: str, message: ChatMessage) -> None:
-        history = self._sessions.setdefault(session_id, [])
-        history.append(message)
-        max_messages = self._max_messages()
-        if len(history) > max_messages:
-            self._sessions[session_id] = history[-max_messages:]
+        """向指定 session 追加单条消息。"""
+        self.append_messages(session_id, [message])
 
-    def _max_messages(self) -> int:
-        return self.history_limit * 2
+    def append_messages(self, session_id: str, messages: list[ChatMessage]) -> None:
+        """向指定 session 追加多条消息，并在追加后按最近 N 轮裁剪。"""
+        history = self._sessions.setdefault(session_id, [])
+        history.extend(messages)
+        self._sessions[session_id] = self._trim_to_recent_turns(history)
+
+    def _trim_to_recent_turns(self, history: list[ChatMessage]) -> list[ChatMessage]:
+        """按 user 消息切分对话轮次，只保留最近 history_limit 轮。"""
+        user_indices = [index for index, message in enumerate(history) if message.role == "user"]
+        if len(user_indices) <= self.history_limit:
+            return list(history)
+
+        start_index = user_indices[-self.history_limit]
+        return history[start_index:]

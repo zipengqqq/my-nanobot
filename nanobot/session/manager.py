@@ -78,6 +78,7 @@ def _message_preview_text(message: dict[str, Any]) -> str:
 
 
 def _metadata_title(metadata: Any) -> str:
+    """从 session metadata 中提取可展示标题，并去掉模型思维残留。"""
     if not isinstance(metadata, dict):
         return ""
     title = metadata.get("title")
@@ -100,6 +101,7 @@ class Session:
     last_consolidated: int = 0  # 已经归档到文件中的消息数量
 
     def __post_init__(self) -> None:
+        """校正 last_consolidated，避免损坏 metadata 隐藏历史消息。"""
         # 偏移越界通常说明 metadata 已损坏；若不重置会导致整段历史被隐藏。
         if (
             isinstance(self.last_consolidated, bool)
@@ -379,6 +381,7 @@ class SessionManager:
     """
 
     def __init__(self, workspace: Path):
+        """初始化 session 目录、兼容旧路径，并建立进程内缓存。"""
         self.workspace = workspace
         self.sessions_dir = ensure_dir(self.workspace / "sessions")
         self.legacy_sessions_dir = get_legacy_sessions_dir()
@@ -527,6 +530,7 @@ class SessionManager:
 
     @staticmethod
     def _session_payload(session: Session) -> dict[str, Any]:
+        """把 Session 对象转换成只读接口可直接返回的标准字典。"""
         return {
             "key": session.key,
             "created_at": session.created_at.isoformat(),

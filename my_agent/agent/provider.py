@@ -10,14 +10,23 @@ from openai import OpenAI
 
 @dataclass(slots=True)
 class ToolCall:
+    """表示模型请求执行的一次工具调用。"""
+
+    # 这次工具调用的唯一标识，tool result 要用它回指对应调用。
     id: str
+    # 模型请求的工具名
     name: str
+    # 传给工具的结构化参数
     arguments: dict[str, Any]
 
 
 @dataclass(slots=True)
 class ModelResponse:
+    """表示 provider 解析后的统一模型响应。"""
+
+    # 当模型直接给出最终文本回答时，这里会有内容。
     text: str | None = None
+    # 当模型要求先调用工具时，这里会保存那次工具调用请求。
     tool_call: ToolCall | None = None
 
 
@@ -62,6 +71,8 @@ class OpenAICompatProvider(ProviderAdapter):
             **request,
         )
         message = response.choices[0].message
+
+        # 从 message 取 tool_calls 属性
         tool_calls = getattr(message, "tool_calls", None)
         if tool_calls:
             tool_call = tool_calls[0]

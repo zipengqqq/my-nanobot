@@ -98,3 +98,28 @@
 - 进入 `Phase 2`
 - 把当前 session 的历史真正用于第二轮对话
 - 验证第二轮提问时，模型能够引用上一轮上下文
+
+### Phase 2 进展
+
+- 已新增 `tests/my_agent/test_phase2.py`，覆盖两类关键行为：
+  - 第二轮请求会带上第一轮的 `user/assistant` 历史
+  - `SessionManager.history_limit` 按“最近 N 轮”而不是“最近 N 条消息”裁剪
+- 已修正 `SessionManager` 的裁剪逻辑：
+  - 当前 Phase 2 语义下，每轮按 2 条消息（`user` + `assistant`）计算
+  - `history_limit=2` 时，会保留最近 2 轮共 4 条消息
+
+### 当前理解
+
+- “支持多轮历史”不只是把消息存起来，还要保证历史窗口的裁剪单位正确。
+- 如果把 `history_limit` 当成消息条数，第二轮以上的上下文会被过早截断，实际效果会偏离 `build-plan.md` 里定义的“最近 N 轮历史”。
+- 到 Phase 2 为止，`AgentLoop -> ContextBuilder -> AgentRunner -> SessionManager` 的边界仍然保持清晰，没有把历史裁剪逻辑泄漏到其他层。
+
+### 已完成验证
+
+- `pytest tests/my_agent/test_phase0.py tests/my_agent/test_phase1.py tests/my_agent/test_phase2.py -q` 通过。
+
+### 下一步
+
+- 进入 `Phase 3`
+- 定义 `Tool` 抽象与 `ToolRegistry` 的最小可用形态
+- 先接入 `read_file`、`list_dir`、`exec` 三个工具中的最小闭环

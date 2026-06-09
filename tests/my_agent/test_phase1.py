@@ -1,8 +1,12 @@
 from pathlib import Path
 from types import SimpleNamespace
 
-from my_agent.agent.provider import OpenAICompatProvider
+from my_agent.agent.provider import OpenAICompatProvider, ProviderAdapter
 from my_agent.app import build_app
+
+
+def test_openai_provider_explicitly_inherits_provider_adapter() -> None:
+    assert issubclass(OpenAICompatProvider, ProviderAdapter)
 
 
 def test_openai_provider_calls_chat_completions_and_returns_text() -> None:

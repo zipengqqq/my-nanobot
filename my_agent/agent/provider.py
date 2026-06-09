@@ -1,19 +1,20 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from typing import Any
-from typing import Protocol
 
 from openai import OpenAI
 
 
-class ProviderAdapter(Protocol):
+class ProviderAdapter(ABC):
     """Provider 抽象接口，方便后续替换具体模型实现。"""
 
+    @abstractmethod
     def generate(self, messages: list[dict[str, str]]) -> str:
         """根据当前消息列表返回一条 assistant 回复。"""
 
 
-class OpenAICompatProvider:
+class OpenAICompatProvider(ProviderAdapter):
     """最小 OpenAI-compatible provider，只处理单轮文本回复。"""
 
     def __init__(

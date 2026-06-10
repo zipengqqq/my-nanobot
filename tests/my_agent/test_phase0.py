@@ -1,10 +1,13 @@
 from pathlib import Path
+from types import SimpleNamespace
+
+from rich.console import Console
 
 from my_agent.agent.context import ContextBuilder
 from my_agent.agent.loop import AgentLoop
 from my_agent.agent.provider import OpenAICompatProvider
 from my_agent.agent.runner import AgentRunner
-from my_agent.app import build_app
+from my_agent.app import AppState, build_app, render_markdown_reply, run_repl
 from my_agent.config import Settings
 from my_agent.session.manager import SessionManager
 from my_agent.tools.registry import ToolRegistry
@@ -79,3 +82,39 @@ def test_build_app_returns_loop_and_settings(tmp_path: Path) -> None:
 
     assert app_state.settings.session_id == "lesson"
     assert app_state.loop is not None
+
+
+def test_run_repl_prints_startup_banner_and_cat_reply(monkeypatch, capsys) -> None:
+    class FakeLoop:
+        def handle_user_message(self, session_id: str, user_text: str) -> str:
+            assert session_id == "lesson"
+            assert user_text == "你好"
+            return "你好！我是你的命令行助手，有什么需要我帮你处理的吗？"
+
+    app_state = AppState(
+        settings=SimpleNamespace(session_id="lesson"),
+        loop=FakeLoop(),
+    )
+    inputs = iter(["你好", "exit"])
+
+    monkeypatch.setattr("my_agent.app.build_app", lambda env_file=None: app_state)
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(inputs))
+
+    run_repl()
+
+    output = capsys.readouterr().out
+    assert "my_codex 已启动，输入quit或exit退出" in output
+    assert "🐱> 你好！我是你的命令行助手，有什么需要我帮你处理的吗？" in output
+
+
+def test_render_markdown_reply_formats_markdown_without_literal_markers() -> None:
+    console = Console(record=True, width=80)
+
+    render_markdown_reply(console, "## 标题\n\n- **李白**\n- `将进酒`")
+
+    output = console.export_text()
+    assert "标题" in output
+    assert "李白" in output
+    assert "将进酒" in output
+    assert "**李白**" not in output
+    assert "`将进酒`" not in output

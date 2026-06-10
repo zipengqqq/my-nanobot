@@ -258,6 +258,20 @@
   - `ToolRegistry`
   - `SessionManager`
   - `ProviderAdapter`
+
+## 2026-06-10
+
+### CLI 文案微调
+
+- 当前工作仍然只触及 CLI 入口显示层，不涉及新的架构 phase。
+- 已把 REPL 中 assistant 的输出前缀从 `助手>` 改为 `🐱>`。
+- 启动文案继续保持：
+  - `my_codex 已启动，输入quit或exit退出`
+
+### 已完成验证
+
+- 已新增最小回归测试，覆盖启动文案和 assistant 前缀：
+  - `tests/my_agent/test_phase0.py::test_run_repl_prints_startup_banner_and_cat_reply`
 - 已明确区分两类复杂度：
   - 本质复杂度：最小 agent 主链路本来就必须保留的骨架
   - 规模复杂度：产品化后才逐步长出来的能力与约束

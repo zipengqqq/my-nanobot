@@ -101,7 +101,7 @@ def run_repl(env_file: Path | str | None = None) -> None:
             session_id=app_state.settings.session_id,
             user_text=user_text,
         )
-        print(f"助手> {reply}")
+        print(f"🐱> {reply}")
 
 
 def main() -> None:

@@ -245,3 +245,47 @@
   - subagent / task orchestration
   - 长期 memory / compaction
   - MCP / 外部工具生态
+
+### Phase 6 进展
+
+- 已新增对照文档：
+  - `docs/agent-learning/phase6-nanobot-comparison.md`
+- 已把 `my_agent` 和 `nanobot` 按层逐一对照，覆盖：
+  - 入口/装配层
+  - `AgentLoop`
+  - `ContextBuilder`
+  - `AgentRunner`
+  - `ToolRegistry`
+  - `SessionManager`
+  - `ProviderAdapter`
+- 已明确区分两类复杂度：
+  - 本质复杂度：最小 agent 主链路本来就必须保留的骨架
+  - 规模复杂度：产品化后才逐步长出来的能力与约束
+- 已新增 `tests/my_agent/test_phase6.py`，用一个最小测试锁定关键边界：
+  - `system prompt` 属于 `ContextBuilder`
+  - session 历史不会错误持久化旧的 `system prompt`
+
+### 当前理解
+
+- 到 `Phase 6` 为止，`my_agent` 已经不只是“做出了一个能跑的 CLI agent”，而是已经能说明：
+  - 哪些层是 `nanobot` 的核心骨架
+  - 哪些复杂度只是因为 `nanobot` 需要支撑真实产品场景
+- `AgentLoop -> ContextBuilder -> AgentRunner -> ToolRegistry -> SessionManager` 这条主链路，在 `my_agent` 中已经和 `nanobot` 保持同构关系。
+- `nanobot` 真正难的地方，不是“文件更多”，而是：
+  - 要保证更多运行时状态可恢复
+  - 要保证更多工具与 provider 组合仍然合法
+  - 要在更复杂的产品边界下维持同样的分层纪律
+
+### 已完成验证
+
+- `pytest tests/my_agent/test_phase6.py -q` 通过。
+- `pytest tests/my_agent/test_phase0.py tests/my_agent/test_phase1.py tests/my_agent/test_phase2.py tests/my_agent/test_phase3.py tests/my_agent/test_phase4.py tests/my_agent/test_phase5.py tests/my_agent/test_phase6.py -q` 通过。
+
+### 下一步
+
+- 第一阶段的 0-6 个 phase 已完成。
+- 如果继续第二阶段，不要默认“继续堆功能”，而要先选一个明确主题，例如：
+  - 更完整的 provider 响应能力
+  - 更严格的工具参数校验
+  - 更接近 `nanobot` 的 history/token 裁剪
+  - 受控引入 memory / skills / MCP 中的一层

@@ -19,5 +19,7 @@
 
 - 当前任务方向：基于 `nanobot` 架构，亲手实现最小 CLI agent
 - 当前方法：先固化架构，再分 phase 开发
-- 当前进度：已完成 `Phase 5`（session 持久化）
-- 当前下一步：进入 `Phase 6`，回看 `nanobot` 并做逐层对照
+- 当前进度：已完成 `Phase 6`（逐层对照 `nanobot`）
+- 当前补充文档：
+  - [phase6-nanobot-comparison.md](/Users/penn/work/nanobot/docs/agent-learning/phase6-nanobot-comparison.md)
+- 当前下一步：如果要继续，不要直接加功能，先明确下一项复杂度属于“本质层补全”还是“产品规模扩展”

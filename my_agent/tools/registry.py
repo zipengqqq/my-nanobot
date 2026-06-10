@@ -4,9 +4,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from my_agent.config import logger
 from my_agent.tools.base import Tool
 from my_agent.tools.filesystem_tool import ListDirTool, ReadFileTool
 from my_agent.tools.shell_tool import ExecTool
+
+
+def _preview_text(text: str, limit: int = 160) -> str:
+    if len(text) <= limit:
+        return text
+    return text[:limit] + "..."
 
 
 @dataclass
@@ -25,11 +32,15 @@ class ToolRegistry:
         """执行某个工具"""
         tool = self.get(name)
         if tool is None:
+            logger.warning("工具执行失败 name=%s reason=not_registered", name)
             return f"ERROR: Tool '{name}' is not registered."
 
         try:
-            return tool.run(arguments)
+            result = tool.run(arguments)
+            logger.info("工具执行完成 name=%s preview=%s", name, _preview_text(result))
+            return result
         except Exception as exc:
+            logger.warning("工具执行失败 name=%s error=%s", name, exc)
             return f"ERROR: Tool '{name}' failed: {exc}"
 
     def list_schemas(self) -> list[dict[str, Any]]:

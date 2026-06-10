@@ -292,6 +292,37 @@
 - `pytest tests/my_agent/test_phase5.py -q` 通过。
 - `pytest tests/my_agent/test_phase6.py -q` 通过。
 
+### 运行期可观测性补充
+
+- 已为最小 CLI agent 增加运行期摘要日志，目标是让开发者看到 agent 当前在做什么，而不是把执行过程当成盲盒。
+- 当前日志点位固定在 3 层：
+  - `AgentLoop`：turn 开始、上下文摘要、turn 完成
+  - `AgentRunner`：模型迭代、工具请求、最终回复、超迭代警告
+  - `ToolRegistry`：工具完成摘要、工具失败
+- 当前日志内容刻意做了截断与摘要，不直接打印完整上下文或超长工具结果，只保留：
+  - session id
+  - 用户输入预览
+  - system prompt 预览
+  - 消息数量
+  - 工具名与参数预览
+  - 工具结果预览
+  - 最终回复预览
+- 运行期日志文案现已统一改为中文，避免 CLI 入口日志与 agent 内部日志出现中英混杂。
+
+### 当前理解
+
+- 这次增强仍然没有改变 `AgentLoop -> AgentRunner -> ToolRegistry` 的职责边界，只是在每一层补了适量的可观测性。
+- “提示词是什么、当前正在调什么工具、模型现在处在哪一轮” 这三类信息，是最能降低开发期不确定性的最小集合。
+- 如果后面继续扩展，不应该把完整 prompt 和完整工具输出原样刷进日志，而应继续坚持“摘要优先”的边界。
+
+### 已完成验证
+
+- `pytest tests/my_agent/test_runtime_logging.py -q` 通过。
+- `pytest tests/my_agent/test_phase4.py -q` 通过。
+- `pytest tests/my_agent/test_phase5.py -q` 通过。
+- `pytest tests/my_agent/test_phase6.py -q` 通过。
+- `pytest tests/my_agent/test_app_logging.py -q` 通过。
+
 ### CLI 文案微调
 
 - 当前工作仍然只触及 CLI 入口显示层，不涉及新的架构 phase。

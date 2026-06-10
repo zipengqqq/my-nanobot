@@ -11,6 +11,10 @@ class ContextBuilder:
     def __init__(self, system_prompt: str = "你是一个命令行 agent 助手。") -> None:
         self._system_prompt = system_prompt
 
+    @property
+    def system_prompt(self) -> str:
+        return self._system_prompt
+
     def build_messages(
         self,
         history: list[ChatMessage],

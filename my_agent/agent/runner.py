@@ -5,8 +5,15 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from my_agent.agent.provider import ModelResponse, ProviderAdapter
+from my_agent.config import logger
 from my_agent.session.models import ChatMessage
 from my_agent.tools.registry import ToolRegistry
+
+
+def _preview_text(text: str, limit: int = 160) -> str:
+    if len(text) <= limit:
+        return text
+    return text[:limit] + "..."
 
 
 @dataclass(slots=True)
@@ -33,13 +40,34 @@ class AgentRunner:
         follow_up_messages = list(messages)
         new_messages: list[ChatMessage] = []
 
-        for _ in range(self.max_iterations):
+        for iteration in range(1, self.max_iterations + 1):
+            logger.info(
+                "Agent 第 %s/%s 轮 messages=%s tools=%s",
+                iteration,
+                self.max_iterations,
+                len(follow_up_messages),
+                [schema["function"]["name"] for schema in tool_schemas],
+            )
             response = self.provider.generate(list(follow_up_messages), tools=tool_schemas)
             if response.tool_call is None:
                 final_text = self._require_text(response)
+                logger.info(
+                    "最终回复 iteration=%s preview=%s",
+                    iteration,
+                    _preview_text(final_text),
+                )
                 new_messages.append(ChatMessage(role="assistant", content=final_text))
                 return RunnerResult(final_text=final_text, new_messages=new_messages)
 
+            logger.info(
+                "请求工具 iteration=%s name=%s args=%s",
+                iteration,
+                response.tool_call.name,
+                _preview_text(
+                    json.dumps(response.tool_call.arguments, ensure_ascii=False),
+                    limit=200,
+                ),
+            )
             assistant_message = self._build_tool_call_message(response)
             tool_result = self.tool_registry.execute(
                 response.tool_call.name,
@@ -55,6 +83,7 @@ class AgentRunner:
             follow_up_messages.append(assistant_message.to_model_message())
             follow_up_messages.append(tool_message.to_model_message())
 
+        logger.warning("Agent 超出最大迭代次数 max_iterations=%s，仍未得到最终回复", self.max_iterations)
         raise ValueError(
             f"Agent exceeded max_iterations={self.max_iterations} before producing a final response."
         )

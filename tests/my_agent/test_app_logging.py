@@ -37,9 +37,9 @@ def test_run_repl_writes_logs_to_file(monkeypatch, tmp_path: Path) -> None:
 
     assert log_file.exists()
     log_text = log_file.read_text(encoding="utf-8")
-    assert "CLI started" in log_text
-    assert "user> 你好" in log_text
-    assert "assistant> 世界" in log_text
+    assert "CLI 已启动" in log_text
+    assert "用户输入: 你好" in log_text
+    assert "助手回复: 世界" in log_text
 
 
 def test_logger_singleton_is_exposed_from_config_module() -> None:

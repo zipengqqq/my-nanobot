@@ -80,33 +80,33 @@ def build_app(env_file: Path | str | None = None) -> AppState:
 
 def run_repl(env_file: Path | str | None = None) -> None:
     app_state = build_app(env_file=env_file)
-    logger.info("CLI started session_id=%s", app_state.settings.session_id)
+    logger.info("CLI 已启动 session_id=%s", app_state.settings.session_id)
     print("my_codex 已启动，输入quit或exit退出")
 
     while True:
         try:
             user_text = input("你> ").strip()
         except EOFError:
-            logger.info("CLI exited by EOF")
+            logger.info("CLI 因 EOF 退出")
             print()
             break
         except KeyboardInterrupt:
-            logger.info("CLI exited by keyboard interrupt")
+            logger.info("CLI 因键盘中断退出")
             print("\n已退出")
             break
 
         if not user_text:
             continue
         if user_text.lower() in {"quit", "exit"}:
-            logger.info("CLI exited by user command")
+            logger.info("CLI 因用户退出命令结束")
             break
 
-        logger.info("user> %s", user_text)
+        logger.info("用户输入: %s", user_text)
         reply = app_state.loop.handle_user_message(
             session_id=app_state.settings.session_id,
             user_text=user_text,
         )
-        logger.info("assistant> %s", reply)
+        logger.info("助手回复: %s", reply)
         print(f"🐱> {reply}")
 
 

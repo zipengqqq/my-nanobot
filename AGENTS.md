@@ -2,14 +2,14 @@ This file provides guidance to AI coding agents working with this repository.
 
 ## Agent Learning Workflow
 
-When the user is working on the local "mini agent" learning project derived from `nanobot`,
+When the user is working on the local `my_agent` project derived from `nanobot`,
 the agent must read these files before proposing architecture, writing code, or continuing
 implementation work:
 
-- [`docs/agent-learning/START_HERE.md`](./docs/agent-learning/START_HERE.md)
-- [`docs/agent-learning/architecture-map.md`](./docs/agent-learning/architecture-map.md)
-- [`docs/agent-learning/build-plan.md`](./docs/agent-learning/build-plan.md)
-- [`docs/agent-learning/progress-log.md`](./docs/agent-learning/progress-log.md)
+- [`docs/my-agent/START_HERE.md`](./docs/my-agent/START_HERE.md)
+- [`docs/my-agent/architecture-map.md`](./docs/my-agent/architecture-map.md)
+- [`docs/my-agent/build-plan.md`](./docs/my-agent/build-plan.md)
+- [`docs/my-agent/progress-log.md`](./docs/my-agent/progress-log.md)
 
 Rules for that workflow:
 

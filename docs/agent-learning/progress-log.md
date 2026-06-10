@@ -37,6 +37,40 @@
 
 ### 下一步
 
+## 2026-06-10
+
+### 项目定位重定义
+
+- 已正式把 `my_agent` 的定位从“最小 CLI 同构版学习项目”切换为“以 `nanobot` 为参考架构、向完整 agent 框架演进的独立项目”。
+- 当前判断是：
+  - 第一阶段 `Phase 0-6` 已完成
+  - 最小主链路已经验证成立
+  - 后续重点不再是重复补最小骨架，而是进入第二阶段产品化扩展
+
+### 文档更新
+
+- 已更新以下文档，使其不再把当前项目描述为“仍在做最小 CLI agent”：
+  - `docs/agent-learning/START_HERE.md`
+  - `docs/agent-learning/build-plan.md`
+  - `docs/agent-learning/architecture-map.md`
+- 文档中的后续路线已从“继续最小 phase”改为“第二阶段扩展路线”，重点覆盖：
+  - 项目定位
+  - 工具体系
+  - 统一入口 / API
+  - runtime 能力
+  - memory / compaction
+  - 多渠道 / MCP / subagent 等扩展层
+
+### 当前理解
+
+- `my_agent` 现在已经不该再被理解为 demo 或教程项目，而应被理解为完整 agent 框架的起始版本。
+- 第一阶段最大的价值，是已经把“哪些是内核、哪些是规模复杂度”说清楚了。
+- 第二阶段最重要的风险，不是不会写功能，而是如果定位不清，扩展会发散并破坏现有主链路。
+
+### 已完成验证
+
+- 已人工核对 `START_HERE.md`、`build-plan.md`、`architecture-map.md` 与 `progress-log.md` 的表述，确保当前定位一致。
+
 - 进入 `Phase 0`
 - 创建最小项目骨架
 - 先把目录和类关系搭出来，再逐步填实现

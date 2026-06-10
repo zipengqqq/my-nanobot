@@ -80,7 +80,7 @@ def build_app(env_file: Path | str | None = None) -> AppState:
 
 def run_repl(env_file: Path | str | None = None) -> None:
     app_state = build_app(env_file=env_file)
-    print("my_agent Phase 1 CLI 已启动，输入 quit 或 exit 退出。")
+    print("my_codex 已启动，输入quit或exit退出")
 
     while True:
         try:

@@ -7,7 +7,7 @@ from my_agent.agent.context import ContextBuilder
 from my_agent.agent.loop import AgentLoop
 from my_agent.agent.provider import OpenAICompatProvider
 from my_agent.agent.runner import AgentRunner
-from my_agent.config import Settings
+from my_agent.config import Settings, logger
 from my_agent.session.manager import SessionManager
 from my_agent.tools.registry import ToolRegistry
 
@@ -80,27 +80,33 @@ def build_app(env_file: Path | str | None = None) -> AppState:
 
 def run_repl(env_file: Path | str | None = None) -> None:
     app_state = build_app(env_file=env_file)
+    logger.info("CLI started session_id=%s", app_state.settings.session_id)
     print("my_codex 已启动，输入quit或exit退出")
 
     while True:
         try:
             user_text = input("你> ").strip()
         except EOFError:
+            logger.info("CLI exited by EOF")
             print()
             break
         except KeyboardInterrupt:
+            logger.info("CLI exited by keyboard interrupt")
             print("\n已退出")
             break
 
         if not user_text:
             continue
         if user_text.lower() in {"quit", "exit"}:
+            logger.info("CLI exited by user command")
             break
 
+        logger.info("user> %s", user_text)
         reply = app_state.loop.handle_user_message(
             session_id=app_state.settings.session_id,
             user_text=user_text,
         )
+        logger.info("assistant> %s", reply)
         print(f"🐱> {reply}")
 
 

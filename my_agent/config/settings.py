@@ -6,8 +6,8 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-DEFAULT_ENV_FILE = Path(__file__).resolve().with_name(".env")
-DEFAULT_SESSION_STORAGE_DIR = Path(__file__).resolve().parent / "storage" / "sessions"
+DEFAULT_ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+DEFAULT_SESSION_STORAGE_DIR = Path(__file__).resolve().parent.parent / "storage" / "sessions"
 
 
 class Settings(BaseSettings):

@@ -261,6 +261,37 @@
 
 ## 2026-06-10
 
+### 入口层补充
+
+- `my_agent/app.py` 已增加文件日志初始化能力。
+- 运行 `app.py` 时，会在 `my_agent/` 目录下写入：
+  - `my_nanobot.log`
+- `my_agent` 的配置相关代码已改为目录化组织：
+  - `my_agent/config/settings.py`
+  - `my_agent/config/logger.py`
+  - `my_agent/config/__init__.py`
+- 原来的平铺文件已移除：
+  - `my_agent/config.py`
+  - `my_agent/logging_setup.py`
+- 当前日志覆盖最小 CLI 入口事件：
+  - 启动
+  - 用户输入
+  - assistant 回复
+  - 退出原因（EOF / Ctrl+C / exit 命令）
+
+### 当前理解
+
+- 这次改动仍然属于入口/装配层补充，没有改变 `AgentLoop -> AgentRunner` 主链路。
+- 现在配置与日志能力都通过 `my_agent.config` 包对外暴露，`app.py` 只保留装配和调用点。
+- 日志调用方式已进一步收敛为直接使用 `logger` 单例，不再通过 `configure_logging` / `init_logger` 这类初始化函数进入。
+- 即使模块移动到 `config/` 目录，`.env`、session 存储目录和 `my_nanobot.log` 仍然保持在 `my_agent/` 根目录语义下，没有发生路径漂移。
+
+### 已完成验证
+
+- `pytest tests/my_agent/test_app_logging.py -q` 通过。
+- `pytest tests/my_agent/test_phase5.py -q` 通过。
+- `pytest tests/my_agent/test_phase6.py -q` 通过。
+
 ### CLI 文案微调
 
 - 当前工作仍然只触及 CLI 入口显示层，不涉及新的架构 phase。

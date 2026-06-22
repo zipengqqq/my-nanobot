@@ -6,7 +6,14 @@ from typing import Any
 
 from my_agent.config import logger
 from my_agent.tools.base import Tool
-from my_agent.tools.filesystem_tool import ListDirTool, ReadFileTool
+from my_agent.tools.filesystem_tool import (
+    EditFileTool,
+    ListDirTool,
+    ReadFileTool,
+    WriteFileTool,
+)
+from my_agent.tools.patch_tool import ApplyPatchTool
+from my_agent.tools.search_tool import FindFilesTool, GrepTool
 from my_agent.tools.shell_tool import ExecTool
 
 
@@ -68,4 +75,9 @@ class ToolRegistry:
         registry.register(ReadFileTool(root=tool_root))
         registry.register(ListDirTool(root=tool_root))
         registry.register(ExecTool(root=tool_root))
+        registry.register(WriteFileTool(root=tool_root))
+        registry.register(EditFileTool(root=tool_root))
+        registry.register(FindFilesTool(root=tool_root))
+        registry.register(GrepTool(root=tool_root))
+        registry.register(ApplyPatchTool(root=tool_root))
         return registry

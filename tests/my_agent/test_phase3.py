@@ -96,4 +96,13 @@ def test_build_app_registers_phase3_default_tools(tmp_path: Path) -> None:
         for schema in app_state.loop.runner.tool_registry.list_schemas()
     ]
 
-    assert tool_names == ["read_file", "list_dir", "exec"]
+    assert tool_names == [
+        "read_file",
+        "list_dir",
+        "exec",
+        "write_file",
+        "edit_file",
+        "find_files",
+        "grep",
+        "apply_patch",
+    ]

@@ -9,7 +9,6 @@ from typing import Any
 
 from my_agent.tools.base import ToolSchema
 
-
 _IGNORE_DIRS = {
     ".git",
     "node_modules",

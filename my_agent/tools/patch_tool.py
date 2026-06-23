@@ -9,7 +9,6 @@ from typing import Any
 from my_agent.tools.base import ToolSchema
 from my_agent.tools.filesystem_tool import FileStateStore
 
-
 _ABSOLUTE_WINDOWS_RE = re.compile(r"^[A-Za-z]:[\\/]")
 
 

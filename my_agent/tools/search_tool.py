@@ -10,7 +10,6 @@ from typing import Any
 from my_agent.tools.base import ToolSchema
 from my_agent.tools.filesystem_tool import _FsTool
 
-
 _DEFAULT_HEAD_LIMIT = 250
 _DEFAULT_FILE_HEAD_LIMIT = 200
 _TYPE_GLOB_MAP = {

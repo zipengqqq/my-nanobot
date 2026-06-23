@@ -105,4 +105,7 @@ def test_build_app_registers_phase3_default_tools(tmp_path: Path) -> None:
         "find_files",
         "grep",
         "apply_patch",
+        "start_exec_session",
+        "write_stdin",
+        "list_exec_sessions",
     ]

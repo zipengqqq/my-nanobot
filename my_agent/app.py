@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from rich.console import Console
+from rich.markdown import Markdown
+
 from my_agent.agent.context import ContextBuilder
 from my_agent.agent.loop import AgentLoop
 from my_agent.agent.provider import OpenAICompatProvider
@@ -16,6 +19,10 @@ from my_agent.tools.registry import ToolRegistry
 class AppState:
     settings: Settings
     loop: AgentLoop
+
+
+def render_markdown_reply(console: Console, reply: str) -> None:
+    console.print(Markdown(reply))
 
 
 def build_app(env_file: Path | str | None = None) -> AppState:
@@ -80,6 +87,7 @@ def build_app(env_file: Path | str | None = None) -> AppState:
 
 def run_repl(env_file: Path | str | None = None) -> None:
     app_state = build_app(env_file=env_file)
+    console = Console()
     logger.info("CLI 已启动 session_id=%s", app_state.settings.session_id)
     print("my_codex 已启动，输入quit或exit退出")
 
@@ -107,7 +115,8 @@ def run_repl(env_file: Path | str | None = None) -> None:
             user_text=user_text,
         )
         logger.info("助手回复: %s", reply)
-        print(f"🐱> {reply}")
+        print("🐱> ", end="")
+        render_markdown_reply(console, reply)
 
 
 def main() -> None:

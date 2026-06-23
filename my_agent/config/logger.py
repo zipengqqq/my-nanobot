@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-
 LOGGER_NAME = "my_agent.app"
 LOG_FILE_PATH = Path(__file__).resolve().parent.parent / "my_nanobot.log"
 

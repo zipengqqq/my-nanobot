@@ -1,6 +1,6 @@
 from my_agent.agent.context import ContextBuilder
-from my_agent.agent.provider import ModelResponse
 from my_agent.agent.loop import AgentLoop
+from my_agent.agent.provider import ModelResponse
 from my_agent.agent.runner import AgentRunner
 from my_agent.session.manager import SessionManager
 from my_agent.session.models import ChatMessage

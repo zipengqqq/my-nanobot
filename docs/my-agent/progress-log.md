@@ -542,4 +542,45 @@
 
 ### 当前状态
 
-- 进行中
+- 第二批长命令会话工具已完成。
+- 已新增：
+  - `my_agent/tools/exec_session_tool.py`
+  - `tests/my_agent/test_phase_b_exec_session_tools.py`
+- 已扩展：
+  - `my_agent/tools/registry.py`
+  - `my_agent/app.py`
+  - `tests/my_agent/test_phase3.py`
+  - `tests/my_agent/test_phase_b_file_search_tools.py`
+- 当前默认工具集已从 8 个扩展到 11 个：
+  - `read_file`
+  - `list_dir`
+  - `exec`
+  - `write_file`
+  - `edit_file`
+  - `find_files`
+  - `grep`
+  - `apply_patch`
+  - `start_exec_session`
+  - `write_stdin`
+  - `list_exec_sessions`
+
+### 当前理解补充
+
+- `exec` 和 `exec session` 继续保持分层：
+  - `exec` 适合一次性短命令
+  - `start_exec_session` / `write_stdin` / `list_exec_sessions` 适合交互式或长运行命令
+- exec session 属于运行时层能力，但对外仍通过 `ToolRegistry` 暴露，未改动 `AgentLoop -> AgentRunner` 主链路。
+- 当前实现保持同步 `run(arguments) -> str` 接口，用 `subprocess.Popen` + 后台线程缓冲 stdout/stderr；这是 Phase B 的复杂度控制，不提前引入 async runtime。
+- `write_stdin` 同时承担写入、轮询和终止进程能力，后续如果交互行为继续变复杂，再考虑拆分更细的 session control 工具。
+
+### 已完成验证
+
+- `pytest tests/my_agent/test_phase_b_exec_session_tools.py -q` 通过，结果为 `4 passed`。
+- `pytest tests/my_agent -q` 通过，结果为 `29 passed, 1 skipped`。
+- `ruff check my_agent tests/my_agent` 通过。
+
+### 下一步
+
+- 继续第二阶段 `Phase B` 第三批联网工具迁移：
+  - `web_search`
+  - `web_fetch`

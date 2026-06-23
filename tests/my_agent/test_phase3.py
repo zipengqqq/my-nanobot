@@ -108,4 +108,6 @@ def test_build_app_registers_phase3_default_tools(tmp_path: Path) -> None:
         "start_exec_session",
         "write_stdin",
         "list_exec_sessions",
+        "web_search",
+        "web_fetch",
     ]

@@ -20,6 +20,7 @@ from my_agent.tools.filesystem_tool import (
 from my_agent.tools.patch_tool import ApplyPatchTool
 from my_agent.tools.search_tool import FindFilesTool, GrepTool
 from my_agent.tools.shell_tool import ExecTool
+from my_agent.tools.web_tool import WebFetchTool, WebSearchTool
 
 
 def _preview_text(text: str, limit: int = 160) -> str:
@@ -88,4 +89,6 @@ class ToolRegistry:
         registry.register(StartExecSessionTool(root=tool_root))
         registry.register(WriteStdinTool(root=tool_root))
         registry.register(ListExecSessionsTool(root=tool_root))
+        registry.register(WebSearchTool(root=tool_root))
+        registry.register(WebFetchTool(root=tool_root))
         return registry

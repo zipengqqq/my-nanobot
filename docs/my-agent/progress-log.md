@@ -584,3 +584,95 @@
 - 继续第二阶段 `Phase B` 第三批联网工具迁移：
   - `web_search`
   - `web_fetch`
+
+### Phase B web 工具迁移进展
+
+- 第三批联网工具已完成。
+- 已新增：
+  - `my_agent/tools/web_tool.py`
+  - `tests/my_agent/test_phase_b_web_tools.py`
+- 已扩展：
+  - `my_agent/tools/registry.py`
+  - `tests/my_agent/test_phase3.py`
+  - `tests/my_agent/test_phase_b_file_search_tools.py`
+  - `tests/my_agent/test_phase_b_exec_session_tools.py`
+- 已移除：
+  - `tests/my_agent/test_phase_b_tools.py` 的 module-level skip 文件
+- 当前默认工具集已从 11 个扩展到 13 个：
+  - `read_file`
+  - `list_dir`
+  - `exec`
+  - `write_file`
+  - `edit_file`
+  - `find_files`
+  - `grep`
+  - `apply_patch`
+  - `start_exec_session`
+  - `write_stdin`
+  - `list_exec_sessions`
+  - `web_search`
+  - `web_fetch`
+
+### 当前理解补充
+
+- `web_search` / `web_fetch` 属于工具体系扩展层，对外仍只通过 `ToolRegistry` 暴露，未改变 `AgentLoop -> AgentRunner` 主链路。
+- 当前实现刻意只使用标准库 `urllib` 与 `html.parser`，不引入浏览器自动化、第三方搜索 API 或额外依赖。
+- 测试使用 monkeypatch 替换 `urllib.request.urlopen`，避免依赖真实网络；这比本地 HTTP server 更适合当前受限沙箱环境。
+- web 工具返回内容必须保持截断和摘要化，避免把长网页原文直接污染模型上下文。
+
+### 已完成验证
+
+- `pytest tests/my_agent/test_phase_b_web_tools.py -q` 通过，结果为 `3 passed`。
+- `pytest tests/my_agent -q` 通过，结果为 `33 passed`。
+- `ruff check my_agent tests/my_agent` 通过。
+
+### 下一步
+
+- 第二阶段 `Phase B` 当前计划内的常用工具批次已完成。
+- 如果继续推进，建议从下面两个方向选一个：
+  - `Phase C`：统一入口与接口层
+  - `Phase D`：运行时能力与可观测性
+
+### web_search 后端调整
+
+- 已根据实际运行反馈移除 DuckDuckGo 搜索后端。
+- 当前 `web_search` 后端顺序调整为：
+  - Bing
+  - Baidu
+  - Sogou
+- 已新增/调整测试，锁定：
+  - 默认第一跳使用 Bing
+  - Bing 失败后 fallback 到 Baidu
+  - 搜索路径不会访问 DuckDuckGo
+
+### 已完成验证
+
+- `pytest tests/my_agent/test_phase_b_web_tools.py -q` 通过，结果为 `4 passed`。
+- 实际联网验证 `WebSearchTool(query="郑州 今天天气")` 已能返回搜索结果。
+- `pytest tests/my_agent -q` 通过，结果为 `34 passed`。
+- `ruff check my_agent tests/my_agent` 通过。
+- `git diff --check` 通过。
+
+### web_search 通用搜索质量修正
+
+- 已按“只做第一层通用搜索修复，不做 npm/news/weather 等特殊化工具”的方向调整。
+- 当前 `web_search` 继续使用通用搜索后端：
+  - Bing
+  - Baidu
+  - Sogou
+- 已增强通用结果解析与输出：
+  - 输出命中的 `source`
+  - 支持提取 `snippet`
+  - 过滤搜索引擎自身导航链接
+  - 保留后端 fallback 失败原因
+- 已撤回 `npm_package_info` 特例方向，避免把通用搜索问题误解成单点垂直工具问题。
+
+### 已完成验证
+
+- `pytest tests/my_agent/test_phase_b_web_tools.py -q` 通过，结果为 `5 passed`。
+- 实际联网验证：
+  - `WebSearchTool(query="Claude Code latest version")` 能返回 GitHub releases、官方 changelog、官网等候选结果。
+  - `WebSearchTool(query="Trump policy latest today Reuters AP")` 仍会返回百科/旧页面，说明普通网页搜索对新闻时效性仍不可靠；后续若要解决，应单独设计 `news_search`，不混入本次第一层修复。
+- `pytest tests/my_agent -q` 通过，结果为 `35 passed`。
+- `ruff check my_agent tests/my_agent` 通过。
+- `git diff --check` 通过。

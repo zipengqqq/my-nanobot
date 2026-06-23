@@ -81,33 +81,32 @@
 ### Phase B 进展
 
 - 已按第二阶段 `Phase B` 扩展默认工具集，从最小 3 个工具推进到可持续 coding 所需的常用工具层。
-- 当前默认工具包括：
+- 当前默认工具包括（8 个）：
   - 文件读写与检索：`read_file`、`list_dir`、`write_file`、`edit_file`、`find_files`、`grep`
   - 命令执行：`exec`
   - 结构化改代码：`apply_patch`
-  - 长命令会话：`start_exec_session`、`write_stdin`、`list_exec_sessions`
-  - 联网读取：`web_search`、`web_fetch`
 - 已新增最小实现文件：
   - `my_agent/tools/patch_tool.py`
-  - `my_agent/tools/exec_session_tool.py`
-  - `my_agent/tools/web_tool.py`
 - 已扩展：
   - `my_agent/tools/filesystem_tool.py`
   - `my_agent/tools/registry.py`
   - `my_agent/app.py`
+- 尚未迁移（后续批次）：
+  - 长命令会话：`start_exec_session`、`write_stdin`、`list_exec_sessions`
+  - 联网读取：`web_search`、`web_fetch`
 
 ### 当前理解补充
 
-- 第二阶段的工具体系重点不是一次追平 `nanobot` 全量能力，而是先补足“agent 自己能稳定读、搜、改、跑、继续跑”的开发闭环。
-- `exec` 和 `exec session` 应继续保持分层：
+- 第二阶段的工具体系重点不是一次追平 `nanobot` 全量能力，而是先补足"agent 自己能稳定读、搜、改、跑、继续跑"的开发闭环。
+- `exec` 和 `exec session` 计划继续保持分层（exec session 尚未迁移）：
   - `exec` 处理一次性命令
   - `exec session` 处理长时间运行或需要交互的命令
 - `apply_patch` 适合作为默认多文件编辑入口，而 `edit_file` 保留给单文件、单处精确替换。
 
 ### 已完成验证
 
-- `pytest tests/my_agent/test_phase_b_tools.py -q` 通过。
-- `pytest tests/my_agent -q` 通过，共 `28 passed`。
+- `pytest tests/my_agent/test_phase_b_tools.py -q` 通过（module-level skip，exec session 与 web 工具尚未迁移）。
+- `pytest tests/my_agent -q` 通过，共 `20 passed, 1 skipped`。
 - `ruff check my_agent tests/my_agent` 通过。
 
 ### 已完成验证
@@ -504,3 +503,43 @@
 - 再之后迁移：
   - `web_search`
   - `web_fetch`
+
+
+## 2026-06-23
+
+### Phase B exec session 与 web 工具迁移计划
+
+- 上一条 2026-06-22 记录中的"下一步"即本次工作内容。
+- 当前 `my_agent` 默认工具集为 8 个（文件读写检索 + exec + apply_patch），exec session 与 web 工具尚未实现。
+- 本次计划按两批迁移：
+
+#### 第二批：长命令会话
+
+- 新增 `my_agent/tools/exec_session_tool.py`，包含三个工具：
+  - `start_exec_session`：启动一个长运行进程，返回 session_id 和初始输出
+  - `write_stdin`：向运行中的 session 写入 stdin / 轮询输出 / 终止进程
+  - `list_exec_sessions`：列出当前活跃的 exec session
+- 设计要点：
+  - 保持 `run(arguments) -> str` 同步接口，不引入 async
+  - 用 `subprocess.Popen` + 后台线程读取 stdout/stderr 缓冲
+  - exec session manager 维护进程表，支持超时和空闲清理
+  - `exec` 处理一次性命令，`exec session` 处理长运行 / 交互式命令，两者分层不变
+
+#### 第三批：联网工具
+
+- 新增 `my_agent/tools/web_tool.py`，包含两个工具：
+  - `web_search`：联网搜索，返回摘要结果
+  - `web_fetch`：抓取指定 URL 的页面内容
+- 设计要点：
+  - 用标准库 `urllib` 实现，不引入额外依赖
+  - 对返回内容做长度截断，避免超长页面污染上下文
+
+#### 注册与测试
+
+- 在 `registry.py` 的 `with_defaults()` 中注册全部 5 个新工具
+- 移除 `test_phase_b_tools.py` 的 module-level skip，或替换为针对新工具的聚焦测试
+- 新增 `tests/my_agent/test_phase_b_exec_session.py` 和 `tests/my_agent/test_phase_b_web.py`
+
+### 当前状态
+
+- 进行中

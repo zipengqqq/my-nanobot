@@ -56,10 +56,10 @@ def build_app(env_file: Path | str | None = None) -> AppState:
         storage_dir=settings.session_storage_dir,
     )
 
-    # Phase 3 开始接入最小默认工具集，但注册和执行仍留在 ToolRegistry 这一层。
+    # 接入最小默认工具集，但注册和执行仍留在 ToolRegistry 这一层。
     tool_registry = ToolRegistry.with_defaults()
 
-    # Provider 负责真正调用大模型接口；当前阶段只做单轮文本对话。
+    # Provider 负责真正调用大模型接口
     provider = OpenAICompatProvider(
         base_url=settings.openai_base_url,
         api_key=settings.openai_api_key,

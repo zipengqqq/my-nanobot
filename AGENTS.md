@@ -1,100 +1,68 @@
-This file provides guidance to AI coding agents working with this repository.
+# my_agent 开发说明
 
-## Agent Learning Workflow
+本仓库最初来自开源项目 `nanobot`。当前的开发目标是维护一个独立、轻量的终端 REPL Agent，项目代码位于 `my_agent/`。
 
-When the user is working on the local `my_agent` project derived from `nanobot`,
-the agent must read these files before proposing architecture, writing code, or continuing
-implementation work:
+## 开发范围
 
-- [`docs/my-agent/START_HERE.md`](./docs/my-agent/START_HERE.md)
-- [`docs/my-agent/architecture-map.md`](./docs/my-agent/architecture-map.md)
-- [`docs/my-agent/build-plan.md`](./docs/my-agent/build-plan.md)
-- [`docs/my-agent/progress-log.md`](./docs/my-agent/progress-log.md)
+- 后续功能和修复默认只修改 `my_agent/`。
+- 产品入口是 `my_agent/app.py` 中的 `run_repl()`；当前不开发 WebUI、桌面端、聊天渠道、Docker 镜像或发布打包功能。
+- `nanobot/`、`tests/`、`bridge/` 等上游目录仅作为实现参考，除非用户明确要求，否则不要修改或恢复其中的内容。
+- 实现新能力前，先在上游代码中查找相近实现，理解其职责划分、错误处理和安全边界；只移植终端 REPL 实际需要的最小部分，避免照搬无关的框架、配置和依赖。
+- 不恢复用户已删除的文件，也不为删除的上游功能补齐替代物，除非用户明确提出。
 
-Rules for that workflow:
+## 当前结构
 
-1. Treat those files as the source of truth for the current learning/build direction.
-2. Do not improvise a different architecture unless the user explicitly asks to revise the plan.
-3. Before starting a new phase, confirm which phase in `build-plan.md` is currently active.
-4. After completing a meaningful step, update `progress-log.md` so a fresh session can resume safely.
-
-## Project Overview
-
-nanobot is a lightweight, open-source AI agent framework written in Python with a React/TypeScript WebUI. It centers around a small agent loop that receives messages from chat channels, invokes an LLM provider, executes tools, and manages session memory.
-
-## Development Commands
-
-```bash
-# Python: run single test / lint
-pytest tests/test_openai_api.py::test_function -v
-ruff check nanobot/
-
-# WebUI: dev server (proxies API/WS to gateway :8765), build, test
-# Build outputs to ../nanobot/web/dist (bundled into the Python wheel)
-cd webui && bun run dev      # or NANOBOT_API_URL=... bun run dev
-cd webui && bun run build
-cd webui && bun run test
-
-# Gateway
-nanobot gateway
+```text
+my_agent/
+  app.py                 REPL 入口和运行时组装
+  agent/
+    loop.py              单轮请求编排
+    context.py           模型上下文构建
+    runner.py            模型与工具调用循环
+    provider.py          OpenAI 兼容模型适配
+  tools/                 工具定义、注册与执行
+  session/               会话模型与本地持久化
+  config/                环境配置和日志
+  storage/sessions/      本地会话数据，不应提交敏感内容
 ```
 
-## High-Level Architecture
+核心调用链为：
 
-### Core Data Flow
+```text
+终端输入 -> AgentLoop -> ContextBuilder -> AgentRunner -> ToolRegistry -> SessionManager -> 终端输出
+```
 
-Messages flow through an async `MessageBus` (`nanobot/bus/queue.py`) that decouples chat channels from the agent core:
+## 架构规则
 
-1. **Channels** (`nanobot/channels/`) receive messages from external platforms and publish `InboundMessage` events to the bus.
-2. **`AgentLoop`** (`nanobot/agent/loop.py`) consumes inbound messages, builds context, and coordinates the turn.
-3. **`AgentRunner`** (`nanobot/agent/runner.py`) handles the actual LLM conversation loop: send messages to the provider, receive tool calls, execute tools, and stream responses.
-4. Responses are published as `OutboundMessage` events back to the appropriate channel.
+1. 保持 `AgentLoop -> AgentRunner` 的职责稳定。`AgentLoop` 负责协调会话、上下文与单轮请求；`AgentRunner` 负责模型和工具调用循环。
+2. 新的外部能力优先实现为 `my_agent/tools/` 中的独立工具，不要将具体工具逻辑写入 REPL、`AgentLoop` 或 `AgentRunner`。
+3. `ContextBuilder` 只负责组织提示词和历史消息，不承担模型调用或会话文件读写。
+4. `SessionManager` 负责会话持久化和历史读取；会话格式变更必须考虑已有本地数据的兼容性。
+5. `provider.py` 隔离模型服务商协议差异。新增模型接入时，避免让上层模块依赖特定厂商的请求或响应格式。
+6. 采用最小可验证改动。不要因为新增一个 REPL 功能而重构无关模块或引入泛化框架。
+7. 使用清晰、直接的 Python 代码；只有在能减少实际复杂度或保护明确边界时才新增抽象。
 
-### Key Subsystems
+## 安全与数据规则
 
-- **Agent Loop** (`nanobot/agent/loop.py`, `runner.py`): The core processing engine. `AgentLoop` manages session keys, hooks, and context building. `AgentRunner` executes the multi-turn LLM conversation with tool execution.
-- **LLM Providers** (`nanobot/providers/`): Provider implementations (Anthropic, OpenAI-compatible, OpenAI Responses API, Azure, Bedrock, GitHub Copilot, OpenAI Codex, etc.) built on a common base (`base.py`). Includes image generation (`image_generation.py`) and audio transcription (`transcription.py`). `factory.py` and `registry.py` handle instantiation and model discovery.
-- **Channels** (`nanobot/channels/`): Platform integrations (Telegram, Discord, Slack, Feishu, Matrix, WhatsApp, QQ, WeChat, WeCom, DingTalk, Email, MoChat, MS Teams, WebSocket). `manager.py` discovers and coordinates them. Channels are auto-discovered via `pkgutil` scan + entry-point plugins.
-- **Tools** (`nanobot/agent/tools/`): Agent capabilities exposed to the LLM: filesystem (read/write/edit/list), shell execution (with sandbox backends), web search/fetch, MCP servers, cron, notebook editing, subagent spawning, long-running tasks / sustained goals (`long_task.py`), image generation, and self-modification. Tools are auto-discovered via `pkgutil` scan + entry-point plugins.
-- **Memory** (`nanobot/agent/memory.py`): Session history persistence with Dream two-phase memory consolidation. Uses atomic writes with fsync for durability.
-- **Session Management** (`nanobot/session/`): Per-session history, context compaction, TTL-based auto-compaction (`manager.py`), and sustained goal state tracking (`goal_state.py`).
-- **Config** (`nanobot/config/schema.py`, `loader.py`): Pydantic-based configuration loaded from `~/.nanobot/config.json`. Supports camelCase aliases for JSON compatibility.
-- **Bridge** (`bridge/`): TypeScript services (e.g. WhatsApp bridge) bundled into the wheel via `pyproject.toml` `force-include`.
-- **WebUI** (`webui/`): Vite-based React SPA that talks to the gateway over a WebSocket multiplex protocol. The dev server proxies `/api`, `/webui`, `/auth`, and WebSocket traffic to the gateway.
-- **API Server** (`nanobot/api/server.py`): OpenAI-compatible HTTP API (`/v1/chat/completions`, `/v1/models`) for programmatic access.
-- **Command Router** (`nanobot/command/`): Slash command routing and built-in command handlers.
-- **Heartbeat** (`nanobot/templates/HEARTBEAT.md`): Periodic task list checked via `cron` jobs (legacy dedicated service removed).
-- **Pairing** (`nanobot/pairing/`): DM sender approval store with persistent pairing codes per channel.
-- **Skills** (`nanobot/skills/`): Built-in skill definitions (long-goal, cron, github, image-generation, etc.) loaded into agent context.
-- **Security** (`nanobot/security/`): PTH file guard and other security measures activated at CLI entry.
+- 不读取、输出、提交或记录 `.env` 中的密钥、访问令牌和其他凭据。
+- 新增文件系统工具时，必须通过明确的允许目录检查限制路径，防止路径遍历和越权访问。
+- 新增 Shell 工具时，必须明确工作目录、命令限制和资源边界；不要默认赋予无约束执行权限。
+- 新增联网工具时，必须验证目标 URL，避免访问回环地址、内网地址和云元数据地址，除非用户明确配置了受控例外。
+- 会话、日志和提示词可能被后续模型调用再次读取。写入这些位置的内容应避免包含密钥、无界原始输出或不必要的本地路径。
+- 修改工具、网络、文件访问或会话持久化逻辑前，可参考 `.agent/security.md` 的上游安全原则；其中 `nanobot/` 路径只作参考，不是 `my_agent` 的实际实现位置。
 
-### Entry Points
+## 开发与验证
 
-- **CLI**: `nanobot/cli/commands.py`
-- **Python SDK**: `nanobot/nanobot.py`
+- 项目要求 Python 3.11+，使用 `pathlib.Path` 处理路径，并保持 Windows 兼容。
+- 修改 Python 代码后，优先运行最接近变更的测试；如尚未建立 `my_agent` 专用测试，则至少运行相关模块的导入或编译检查。
+- 使用 `ruff check my_agent/` 进行静态检查；不要运行 `ruff format`。
+- 调整 REPL 行为时，手动验证启动、空输入、`quit`/`exit`、`Ctrl+C` 和 `EOF` 等基本交互。
+- 对工具执行、网络请求、会话读写等高风险改动，应增加 `my_agent` 对应的回归测试后再宣称完成。
 
-## Project-Specific Notes
+## 参考资料
 
-- Architecture constraints: [`.agent/design.md`](.agent/design.md)
-- Security boundaries: [`.agent/security.md`](.agent/security.md)
-- Common gotchas: [`.agent/gotchas.md`](.agent/gotchas.md)
+- `.agent/design.md`：上游架构取舍原则。
+- `.agent/security.md`：上游安全边界原则。
+- `.agent/gotchas.md`：上游常见问题；其中与已删除模块相关的具体路径不适用于当前项目。
 
-## Contribution Flow
-
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for contribution flow and PR guidelines.
-
-## Code Style
-
-- Python 3.11+, asyncio throughout.
-- Line length: 100.
-- Linting: `ruff` with rules E, F, I, N, W (E501 ignored).
-- pytest with `asyncio_mode = "auto"`.
-
-## Common File Locations
-
-- Config schema: `nanobot/config/schema.py`
-- Provider base / new provider template: `nanobot/providers/base.py`
-- Channel base / new channel template: `nanobot/channels/base.py`
-- Tool registry: `nanobot/agent/tools/registry.py`
-- WebUI dev proxy config: `webui/vite.config.ts`
-- Tests mirror the `nanobot/` package structure.
+这些文件仅供参考。`my_agent/` 的现有代码、测试和本文件定义当前项目的实际开发约定。

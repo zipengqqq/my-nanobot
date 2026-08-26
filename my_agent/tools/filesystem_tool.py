@@ -151,7 +151,7 @@ class ReadFileTool(_FsTool):
         raw = path.read_bytes()
         if _is_binary(raw):
             raise ValueError(f"Cannot read binary file {arguments['path']}")
-        text = raw.decode("utf-8")
+        text = raw.decode("utf-8").replace("\r\n", "\n")
         assert self.file_states is not None
         self.file_states.record_read(path)
         return text

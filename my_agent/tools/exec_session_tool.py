@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-import shlex
-import subprocess
 import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TextIO
 
+from my_agent.sandbox import SandboxProcess
+from my_agent.sandbox.runner import SandboxRunner
 from my_agent.tools.base import ToolSchema
-from my_agent.tools.shell_tool import _resolve_cwd
+from my_agent.tools.shell_tool import _resolve_cwd, split_command
 
 
 def _read_stream(stream: TextIO, buffer: list[str], lock: threading.Lock) -> None:
@@ -22,7 +22,7 @@ def _read_stream(stream: TextIO, buffer: list[str], lock: threading.Lock) -> Non
 class ExecSession:
     id: int
     command: str
-    process: subprocess.Popen[str]
+    process: SandboxProcess
     started_at: float
     stdout: list[str]
     stderr: list[str]
@@ -48,17 +48,13 @@ class ExecSession:
 @dataclass(slots=True)
 class ExecSessionStore:
     root: Path
+    sandbox_runner: SandboxRunner
     sessions: dict[int, ExecSession]
     next_id: int = 1
 
     def start(self, command: str, cwd: Path) -> ExecSession:
-        process = subprocess.Popen(
-            shlex.split(command),
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            bufsize=1,
+        process = self.sandbox_runner.start(
+            split_command(command),
             cwd=cwd,
         )
         session = ExecSession(
@@ -97,12 +93,14 @@ class ExecSessionStore:
 _EXEC_SESSION_STORES: dict[Path, ExecSessionStore] = {}
 
 
-def _store_for(root: Path) -> ExecSessionStore:
+def _store_for(root: Path, sandbox_runner: SandboxRunner) -> ExecSessionStore:
     resolved = root.resolve()
     store = _EXEC_SESSION_STORES.get(resolved)
     if store is None:
-        store = ExecSessionStore(root=resolved, sessions={})
+        store = ExecSessionStore(root=resolved, sandbox_runner=sandbox_runner, sessions={})
         _EXEC_SESSION_STORES[resolved] = store
+    elif store.sandbox_runner is not sandbox_runner:
+        raise RuntimeError("同一工作区必须使用同一个沙箱启动器")
     return store
 
 
@@ -129,6 +127,7 @@ class StartExecSessionTool:
     """启动长运行或交互式命令，并返回后续操作需要的 session_id。"""
 
     root: Path
+    sandbox_runner: SandboxRunner
 
     @property
     def schema(self) -> ToolSchema:
@@ -158,7 +157,7 @@ class StartExecSessionTool:
     def run(self, arguments: dict[str, Any]) -> str:
         command = str(arguments["command"])
         cwd = _resolve_cwd(self.root, arguments.get("cwd"))
-        session = _store_for(self.root).start(command=command, cwd=cwd)
+        session = _store_for(self.root, self.sandbox_runner).start(command=command, cwd=cwd)
         _wait_for_output(arguments.get("yield_time_ms"))
         stdout, stderr = session.consume_output()
         return _format_session_result(session, stdout, stderr)
@@ -169,6 +168,7 @@ class WriteStdinTool:
     """向已有 exec session 写入 stdin、轮询新输出，或终止运行中的进程。"""
 
     root: Path
+    sandbox_runner: SandboxRunner
 
     @property
     def schema(self) -> ToolSchema:
@@ -201,12 +201,12 @@ class WriteStdinTool:
 
     def run(self, arguments: dict[str, Any]) -> str:
         session_id = int(arguments["session_id"])
-        session = _store_for(self.root).get(session_id)
+        session = _store_for(self.root, self.sandbox_runner).get(session_id)
         if session is None:
             return f"Error: exec session {session_id} not found"
 
         if bool(arguments.get("terminate", False)) and session.process.poll() is None:
-            session.process.terminate()
+            session.process.terminate_tree()
 
         chars = str(arguments.get("chars", ""))
         if chars and session.process.poll() is None and session.process.stdin is not None:
@@ -223,6 +223,7 @@ class ListExecSessionsTool:
     """列出当前工作区内已知 exec session 的状态和原始命令。"""
 
     root: Path
+    sandbox_runner: SandboxRunner
 
     @property
     def schema(self) -> ToolSchema:
@@ -237,7 +238,7 @@ class ListExecSessionsTool:
         )
 
     def run(self, arguments: dict[str, Any]) -> str:
-        sessions = _store_for(self.root).list()
+        sessions = _store_for(self.root, self.sandbox_runner).list()
         if not sessions:
             return "No exec sessions"
         lines = []

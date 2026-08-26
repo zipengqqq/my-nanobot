@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from my_agent.config import logger
+from my_agent.sandbox import SandboxPolicy, SandboxRunner
 from my_agent.tools.base import Tool
 from my_agent.tools.exec_session_tool import (
     ListExecSessionsTool,
@@ -71,24 +72,32 @@ class ToolRegistry:
         ]
 
     @classmethod
-    def with_defaults(cls, root: Path | None = None) -> "ToolRegistry":
+    def with_defaults(
+        cls,
+        root: Path | None = None,
+        sandbox_runner: SandboxRunner | None = None,
+    ) -> "ToolRegistry":
         """
             之所以写成带引号的 "ToolRegistry"，是因为它在类体内部引用了“当前这个类自己”。
             这种写法叫前向引用，避免 Python 在解析这个函数签名时，类名还没完全定义好
         """
         registry = cls()
         tool_root = (root or Path.cwd()).resolve()
+        runner = sandbox_runner or SandboxRunner(
+            policy=SandboxPolicy.required(tool_root),
+            backends=[],
+        )
         registry.register(ReadFileTool(root=tool_root))
         registry.register(ListDirTool(root=tool_root))
-        registry.register(ExecTool(root=tool_root))
+        registry.register(ExecTool(root=tool_root, sandbox_runner=runner))
         registry.register(WriteFileTool(root=tool_root))
         registry.register(EditFileTool(root=tool_root))
         registry.register(FindFilesTool(root=tool_root))
         registry.register(GrepTool(root=tool_root))
         registry.register(ApplyPatchTool(root=tool_root))
-        registry.register(StartExecSessionTool(root=tool_root))
-        registry.register(WriteStdinTool(root=tool_root))
-        registry.register(ListExecSessionsTool(root=tool_root))
+        registry.register(StartExecSessionTool(root=tool_root, sandbox_runner=runner))
+        registry.register(WriteStdinTool(root=tool_root, sandbox_runner=runner))
+        registry.register(ListExecSessionsTool(root=tool_root, sandbox_runner=runner))
         registry.register(WebSearchTool(root=tool_root))
         registry.register(WebFetchTool(root=tool_root))
         return registry

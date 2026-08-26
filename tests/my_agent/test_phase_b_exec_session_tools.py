@@ -3,6 +3,7 @@ from pathlib import Path
 
 import my_agent.tools.exec_session_tool as exec_session_tool
 from my_agent.app import build_app
+from tests.my_agent.sandbox_fakes import FakeSandboxRunner
 
 
 def test_exec_session_tools_support_interactive_command(tmp_path: Path) -> None:
@@ -10,9 +11,13 @@ def test_exec_session_tools_support_interactive_command(tmp_path: Path) -> None:
     assert hasattr(exec_session_tool, "WriteStdinTool")
     assert hasattr(exec_session_tool, "ListExecSessionsTool")
 
-    start_tool = exec_session_tool.StartExecSessionTool(root=tmp_path)
-    write_tool = exec_session_tool.WriteStdinTool(root=tmp_path)
-    list_tool = exec_session_tool.ListExecSessionsTool(root=tmp_path)
+    sandbox_runner = FakeSandboxRunner(stdout="ready\n", exit_code=None, echo_input=True)
+    start_tool = exec_session_tool.StartExecSessionTool(
+        root=tmp_path,
+        sandbox_runner=sandbox_runner,
+    )
+    write_tool = exec_session_tool.WriteStdinTool(root=tmp_path, sandbox_runner=sandbox_runner)
+    list_tool = exec_session_tool.ListExecSessionsTool(root=tmp_path, sandbox_runner=sandbox_runner)
 
     command = (
         f"{sys.executable} -c "
@@ -52,7 +57,10 @@ def test_exec_session_tools_support_interactive_command(tmp_path: Path) -> None:
 def test_write_stdin_returns_clear_error_for_unknown_session(tmp_path: Path) -> None:
     assert hasattr(exec_session_tool, "WriteStdinTool")
 
-    write_tool = exec_session_tool.WriteStdinTool(root=tmp_path)
+    write_tool = exec_session_tool.WriteStdinTool(
+        root=tmp_path,
+        sandbox_runner=FakeSandboxRunner(),
+    )
 
     result = write_tool.run({"session_id": 999, "chars": "hello\n"})
 
@@ -60,8 +68,12 @@ def test_write_stdin_returns_clear_error_for_unknown_session(tmp_path: Path) -> 
 
 
 def test_write_stdin_can_terminate_running_session(tmp_path: Path) -> None:
-    start_tool = exec_session_tool.StartExecSessionTool(root=tmp_path)
-    write_tool = exec_session_tool.WriteStdinTool(root=tmp_path)
+    sandbox_runner = FakeSandboxRunner(exit_code=None)
+    start_tool = exec_session_tool.StartExecSessionTool(
+        root=tmp_path,
+        sandbox_runner=sandbox_runner,
+    )
+    write_tool = exec_session_tool.WriteStdinTool(root=tmp_path, sandbox_runner=sandbox_runner)
 
     command = f"{sys.executable} -c \"import time; time.sleep(30)\""
     started = start_tool.run({"command": command, "yield_time_ms": 10})

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from pydantic import Field
@@ -28,6 +29,14 @@ class Settings(BaseSettings):
         validation_alias="MY_AGENT_SESSION_STORAGE_DIR",
     )
     max_iterations: int = Field(default=6, validation_alias="MY_AGENT_MAX_ITERATIONS")
+    sandbox_wsl_distro: str = Field(
+        default="Ubuntu",
+        validation_alias="MY_AGENT_SANDBOX_WSL_DISTRO",
+    )
+    sandbox_wsl_user: str = Field(
+        default_factory=lambda: os.environ.get("USERNAME", ""),
+        validation_alias="MY_AGENT_SANDBOX_WSL_USER",
+    )
 
     @classmethod
     def from_env_file(cls, env_file: Path | str | None = None) -> "Settings":

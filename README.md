@@ -65,7 +65,33 @@ python -m my_agent.app
 
 模型可使用的工具在 `my_agent/tools/registry.py` 中注册，包括本地文件操作、Shell 命令、命令会话、网页搜索和网页抓取。
 
-这些工具会根据模型输出执行操作，存在修改文件、运行命令和访问网络的风险。当前项目尚未提供完整的执行沙箱或网络隔离，因此只应在可信的本地工作目录、可信的模型服务和可信的提示词环境中运行。不要把含有密钥、个人数据或重要生产资源的目录作为工作目录。
+这些工具会根据模型输出执行操作，存在修改文件、运行命令和访问网络的风险。不要把含有密钥、个人数据或重要生产资源的目录作为工作目录。
+
+### 命令沙箱
+
+在 Windows 上，`my_agent` 的 `exec` 和命令会话工具通过 WSL2（Windows 的 Linux 子系统）调用 Bubblewrap（Linux 进程隔离工具）执行。沙箱仅将当前工作目录映射为 `/workspace`，Linux 运行时目录只读挂载，网络默认关闭；无法使用后端时会拒绝执行，不会退回为普通 Windows 子进程。
+
+命令运行在 Ubuntu 环境，因此应使用 Linux 命令，例如 `ls`、`sh` 和 `python3`，不要使用 `dir`、`cmd.exe` 或 Windows 路径。
+
+首次使用前需要安装 Ubuntu WSL2，并在其中安装 Bubblewrap：
+
+```powershell
+wsl --install Ubuntu
+```
+
+```bash
+sudo apt-get update
+sudo apt-get install bubblewrap
+```
+
+可通过以下变量选择 WSL 发行版和其中的普通用户：
+
+| 变量 | 说明 | 默认值 |
+| --- | --- | --- |
+| `MY_AGENT_SANDBOX_WSL_DISTRO` | 执行 Bubblewrap 的 WSL 发行版名称 | `Ubuntu` |
+| `MY_AGENT_SANDBOX_WSL_USER` | WSL 内执行沙箱命令的普通用户名 | 当前 Windows 用户名 |
+
+不要将 WSL 用户配置为 `root`。当前实现只隔离命令执行；文件工具和网页工具仍应按照工作区和网络安全规则继续收紧。
 
 `.env`、会话文件和日志都可能包含敏感信息，应保持在本机并排除在提交内容之外。
 

@@ -11,6 +11,8 @@ from my_agent.agent.loop import AgentLoop
 from my_agent.agent.provider import OpenAICompatProvider
 from my_agent.agent.runner import AgentRunner
 from my_agent.config import Settings, logger
+from my_agent.sandbox import SandboxPolicy, SandboxRunner
+from my_agent.sandbox.wsl import WslBubblewrapBackend
 from my_agent.session.manager import SessionManager
 from my_agent.tools.registry import ToolRegistry
 
@@ -57,7 +59,20 @@ def build_app(env_file: Path | str | None = None) -> AppState:
     )
 
     # 接入最小默认工具集，但注册和执行仍留在 ToolRegistry 这一层。
-    tool_registry = ToolRegistry.with_defaults()
+    workspace_root = Path.cwd().resolve()
+    sandbox_runner = SandboxRunner(
+        policy=SandboxPolicy.required(workspace_root),
+        backends=[
+            WslBubblewrapBackend(
+                distro=settings.sandbox_wsl_distro,
+                user=settings.sandbox_wsl_user,
+            )
+        ],
+    )
+    tool_registry = ToolRegistry.with_defaults(
+        root=workspace_root,
+        sandbox_runner=sandbox_runner,
+    )
 
     # Provider 负责真正调用大模型接口
     provider = OpenAICompatProvider(

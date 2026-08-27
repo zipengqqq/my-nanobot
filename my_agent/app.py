@@ -13,6 +13,7 @@ from my_agent.agent.provider import OpenAICompatProvider
 from my_agent.agent.runner import AgentRunner
 from my_agent.agent.skills import BUILTIN_SKILLS_DIR, SkillsLoader
 from my_agent.config import Settings, logger
+from my_agent.repl.input import prompt_with_images
 from my_agent.sandbox import SandboxPolicy, SandboxRunner
 from my_agent.sandbox.wsl import WslBubblewrapBackend
 from my_agent.session.manager import SessionManager
@@ -139,7 +140,7 @@ def run_repl(env_file: Path | str | None = None) -> None:
 
     while True:
         try:
-            user_text = input("你> ").strip()
+            user_text, images = prompt_with_images("你> ")
         except EOFError:
             logger.info("CLI 因 EOF 退出")
             print()
@@ -157,10 +158,13 @@ def run_repl(env_file: Path | str | None = None) -> None:
 
         logger.info("用户输入: %s", user_text)
         trace_renderer.start_turn()
-        reply = app_state.loop.handle_user_message(
-            session_id=app_state.settings.session_id,
-            user_text=user_text,
-        )
+        request = {
+            "session_id": app_state.settings.session_id,
+            "user_text": user_text,
+        }
+        if images:
+            request["images"] = images
+        reply = app_state.loop.handle_user_message(**request)
         logger.info("助手回复: %s", reply)
         console.print(Text("assistant> "), end="")
         render_markdown_reply(console, reply)

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from my_agent.agent.context import ContextBuilder
+from my_agent.agent.media import ImageAttachment
 from my_agent.agent.runner import AgentRunner
 from my_agent.config import logger
 from my_agent.session.manager import SessionManager
@@ -23,7 +24,12 @@ class AgentLoop:
     context_builder: ContextBuilder
     runner: AgentRunner
 
-    def handle_user_message(self, session_id: str, user_text: str) -> str:
+    def handle_user_message(
+        self,
+        session_id: str,
+        user_text: str,
+        images: list[ImageAttachment] | None = None,
+    ) -> str:
         history = self.session_manager.get_history(session_id)
         logger.info(
             "开始处理本轮 session=%s history_messages=%s user=%s",
@@ -31,7 +37,11 @@ class AgentLoop:
             len(history),
             _preview_text(user_text),
         )
-        messages = self.context_builder.build_messages(history=history, user_text=user_text)
+        messages = self.context_builder.build_messages(
+            history=history,
+            user_text=user_text,
+            images=images,
+        )
         logger.info(
             "上下文已构建 session=%s history_messages=%s model_messages=%s system_prompt=%s",
             session_id,

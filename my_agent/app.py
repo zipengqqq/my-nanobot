@@ -5,6 +5,7 @@ from pathlib import Path
 
 from rich.console import Console
 from rich.markdown import Markdown
+from rich.text import Text
 
 from my_agent.agent.context import ContextBuilder
 from my_agent.agent.loop import AgentLoop
@@ -23,6 +24,30 @@ class AppState:
     settings: Settings
     loop: AgentLoop
 
+
+@dataclass(slots=True)
+class ReplTraceRenderer:
+    """把模型的工具调用实时输出为简洁的 REPL 执行轨迹。"""
+
+    console: Console
+    _skill_active: bool = False
+
+    def start_turn(self) -> None:
+        self._skill_active = False
+
+    def on_tool_call(self, name: str, arguments: dict[str, object]) -> None:
+        if name == "read_file" and self._is_skill_path(arguments.get("path")):
+            path = Path(str(arguments["path"]))
+            self.console.print(Text(f"[技能] 读取 {path.parent.name}"))
+            self._skill_active = True
+            return
+
+        prefix = "  " if self._skill_active else ""
+        self.console.print(Text(f"{prefix}[工具] 调用 {name}"))
+
+    @staticmethod
+    def _is_skill_path(path: object) -> bool:
+        return Path(str(path)).name == "SKILL.md"
 
 def render_markdown_reply(console: Console, reply: str) -> None:
     console.print(Markdown(reply))
@@ -105,6 +130,10 @@ def build_app(env_file: Path | str | None = None) -> AppState:
 def run_repl(env_file: Path | str | None = None) -> None:
     app_state = build_app(env_file=env_file)
     console = Console()
+    trace_renderer = ReplTraceRenderer(console)
+    runner = getattr(app_state.loop, "runner", None)
+    if isinstance(runner, AgentRunner):
+        runner.on_tool_call = trace_renderer.on_tool_call
     logger.info("CLI 已启动 session_id=%s", app_state.settings.session_id)
     print("my_codex 已启动，输入quit或exit退出")
 
@@ -127,12 +156,13 @@ def run_repl(env_file: Path | str | None = None) -> None:
             break
 
         logger.info("用户输入: %s", user_text)
+        trace_renderer.start_turn()
         reply = app_state.loop.handle_user_message(
             session_id=app_state.settings.session_id,
             user_text=user_text,
         )
         logger.info("助手回复: %s", reply)
-        print("🐱> ", end="")
+        console.print(Text("assistant> "), end="")
         render_markdown_reply(console, reply)
 
 

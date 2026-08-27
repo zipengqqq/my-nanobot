@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -33,6 +34,7 @@ class AgentRunner:
     provider: ProviderAdapter
     tool_registry: ToolRegistry
     max_iterations: int = 6
+    on_tool_call: Callable[[str, dict[str, Any]], None] | None = None
 
     def run(self, messages: list[dict[str, Any]]) -> RunnerResult:
         tool_schemas = self.tool_registry.list_schemas()
@@ -68,6 +70,8 @@ class AgentRunner:
                     limit=200,
                 ),
             )
+            if self.on_tool_call is not None:
+                self.on_tool_call(response.tool_call.name, response.tool_call.arguments)
             assistant_message = self._build_tool_call_message(response)
             tool_result = self.tool_registry.execute(
                 response.tool_call.name,

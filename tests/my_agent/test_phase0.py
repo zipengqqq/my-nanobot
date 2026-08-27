@@ -84,7 +84,7 @@ def test_build_app_returns_loop_and_settings(tmp_path: Path) -> None:
     assert app_state.loop is not None
 
 
-def test_run_repl_prints_startup_banner_and_cat_reply(monkeypatch, capsys) -> None:
+def test_run_repl_prints_startup_banner_and_assistant_reply(monkeypatch, capsys) -> None:
     class FakeLoop:
         def handle_user_message(self, session_id: str, user_text: str) -> str:
             assert session_id == "lesson"
@@ -104,7 +104,37 @@ def test_run_repl_prints_startup_banner_and_cat_reply(monkeypatch, capsys) -> No
 
     output = capsys.readouterr().out
     assert "my_codex 已启动，输入quit或exit退出" in output
-    assert "🐱> 你好！我是你的命令行助手，有什么需要我帮你处理的吗？" in output
+    assert "assistant> 你好！我是你的命令行助手，有什么需要我帮你处理的吗？" in output
+
+
+def test_run_repl_uses_one_console_for_reply_prefix_and_body(monkeypatch) -> None:
+    printed: list[tuple[tuple[object, ...], dict[str, object]]] = []
+
+    class FakeConsole:
+        def print(self, *objects: object, **kwargs: object) -> None:
+            printed.append((objects, kwargs))
+
+    class FakeLoop:
+        def handle_user_message(self, session_id: str, user_text: str) -> str:
+            _ = session_id
+            _ = user_text
+            return "reply"
+
+    app_state = AppState(
+        settings=SimpleNamespace(session_id="lesson"),
+        loop=FakeLoop(),
+    )
+    inputs = iter(["hello", "exit"])
+
+    monkeypatch.setattr("my_agent.app.build_app", lambda env_file=None: app_state)
+    monkeypatch.setattr("my_agent.app.Console", FakeConsole)
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(inputs))
+
+    run_repl()
+
+    assert printed[0][0][0].plain == "assistant> "  # type: ignore[union-attr]
+    assert printed[0][1] == {"end": ""}
+    assert printed[1][0][0].markup == "reply"  # type: ignore[union-attr]
 
 
 def test_render_markdown_reply_formats_markdown_without_literal_markers() -> None:

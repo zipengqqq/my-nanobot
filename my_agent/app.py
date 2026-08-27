@@ -10,6 +10,7 @@ from my_agent.agent.context import ContextBuilder
 from my_agent.agent.loop import AgentLoop
 from my_agent.agent.provider import OpenAICompatProvider
 from my_agent.agent.runner import AgentRunner
+from my_agent.agent.skills import BUILTIN_SKILLS_DIR, SkillsLoader
 from my_agent.config import Settings, logger
 from my_agent.sandbox import SandboxPolicy, SandboxRunner
 from my_agent.sandbox.wsl import WslBubblewrapBackend
@@ -72,6 +73,7 @@ def build_app(env_file: Path | str | None = None) -> AppState:
     tool_registry = ToolRegistry.with_defaults(
         root=workspace_root,
         sandbox_runner=sandbox_runner,
+        extra_read_roots=[BUILTIN_SKILLS_DIR],
     )
 
     # Provider 负责真正调用大模型接口
@@ -82,7 +84,7 @@ def build_app(env_file: Path | str | None = None) -> AppState:
     )
 
     # ContextBuilder 负责把 system prompt、history、user message 组装成 messages。
-    context_builder = ContextBuilder()
+    context_builder = ContextBuilder(skills=SkillsLoader(workspace=workspace_root))
 
     # AgentRunner 只关心“拿到 messages 以后如何调 provider”。
     runner = AgentRunner(

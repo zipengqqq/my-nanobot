@@ -59,7 +59,7 @@ def test_agent_runtime_logs_turn_context_tooling_and_final_reply(
         context_builder=ContextBuilder(system_prompt="你是测试助手，负责解释你正在做什么。"),
         runner=AgentRunner(
             provider=LoggingToolLoopProvider(working_dir=tmp_path),
-            tool_registry=ToolRegistry.with_defaults(),
+            tool_registry=ToolRegistry.with_defaults(root=tmp_path),
             max_iterations=3,
         ),
     )

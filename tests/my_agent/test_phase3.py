@@ -44,7 +44,7 @@ def test_agent_runner_executes_single_tool_call_before_final_answer(tmp_path: Pa
     loop = AgentLoop(
         session_manager=SessionManager(history_limit=3),
         context_builder=ContextBuilder(system_prompt="你是测试助手"),
-        runner=AgentRunner(provider=provider, tool_registry=ToolRegistry.with_defaults()),
+        runner=AgentRunner(provider=provider, tool_registry=ToolRegistry.with_defaults(root=tmp_path)),
     )
 
     reply = loop.handle_user_message(session_id="lesson", user_text="帮我读取文件")

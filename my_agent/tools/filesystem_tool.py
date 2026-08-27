@@ -125,6 +125,19 @@ class _FsTool:
 class ReadFileTool(_FsTool):
     """读取单个 UTF-8 文本文件，并记录“已读”状态供后续编辑工具使用。"""
 
+    extra_read_roots: tuple[Path, ...] = ()
+
+    def _resolve(self, raw_path: str) -> Path:
+        requested = Path(raw_path)
+        path = requested.resolve() if requested.is_absolute() else (self.root / requested).resolve()
+        for allowed_root in (self.root, *self.extra_read_roots):
+            try:
+                path.relative_to(allowed_root.resolve())
+                return path
+            except ValueError:
+                continue
+        raise PermissionError(f"Path escapes allowed read directories: {raw_path}")
+
     @property
     def schema(self) -> ToolSchema:
         return ToolSchema(

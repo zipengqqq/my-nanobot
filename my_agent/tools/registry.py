@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 from my_agent.config import logger
 from my_agent.sandbox import SandboxPolicy, SandboxRunner
@@ -76,6 +76,7 @@ class ToolRegistry:
         cls,
         root: Path | None = None,
         sandbox_runner: SandboxRunner | None = None,
+        extra_read_roots: Sequence[Path] = (),
     ) -> "ToolRegistry":
         """
             之所以写成带引号的 "ToolRegistry"，是因为它在类体内部引用了“当前这个类自己”。
@@ -87,7 +88,7 @@ class ToolRegistry:
             policy=SandboxPolicy.required(tool_root),
             backends=[],
         )
-        registry.register(ReadFileTool(root=tool_root))
+        registry.register(ReadFileTool(root=tool_root, extra_read_roots=tuple(extra_read_roots)))
         registry.register(ListDirTool(root=tool_root))
         registry.register(ExecTool(root=tool_root, sandbox_runner=runner))
         registry.register(WriteFileTool(root=tool_root))

@@ -73,7 +73,7 @@ def test_agent_runner_supports_multiple_tool_calls_and_saves_turn_history(tmp_pa
         context_builder=ContextBuilder(system_prompt="你是测试助手"),
         runner=AgentRunner(
             provider=provider,
-            tool_registry=ToolRegistry.with_defaults(),
+            tool_registry=ToolRegistry.with_defaults(root=tmp_path),
             max_iterations=4,
         ),
     )

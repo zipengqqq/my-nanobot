@@ -99,8 +99,12 @@ def test_build_app_restores_prior_session_history_after_restart(tmp_path: Path) 
 
     assert first_reply == "reply-1"
     assert second_reply == "reply-1"
-    assert second_provider.calls[0] == [
-        {"role": "system", "content": "你是一个命令行 agent 助手。"},
+    system_message = second_provider.calls[0][0]
+    assert system_message["role"] == "system"
+    assert system_message["content"].startswith("你是一个命令行 agent 助手。")
+    assert "# Skills" in system_message["content"]
+    assert "weather" in system_message["content"]
+    assert second_provider.calls[0][1:] == [
         {"role": "user", "content": "第一问"},
         {"role": "assistant", "content": "reply-1"},
         {"role": "user", "content": "第二问"},

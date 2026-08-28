@@ -18,6 +18,7 @@ from my_agent.tools.filesystem_tool import (
     ReadFileTool,
     WriteFileTool,
 )
+from my_agent.tools.image_generation_tool import ImageGenerationTool
 from my_agent.tools.patch_tool import ApplyPatchTool
 from my_agent.tools.search_tool import FindFilesTool, GrepTool
 from my_agent.tools.shell_tool import ExecTool
@@ -77,6 +78,12 @@ class ToolRegistry:
         root: Path | None = None,
         sandbox_runner: SandboxRunner | None = None,
         extra_read_roots: Sequence[Path] = (),
+        image_api_key: str | None = None,
+        image_model: str = "gpt-image-2",
+        image_draw_url: str = "https://www.rightapi.ai/draw/v1/images/generations",
+        image_task_url_template: str = "https://www.rightapi.ai/v1/tasks",
+        image_timeout_seconds: float = 120.0,
+        image_max_images_per_turn: int = 1,
     ) -> "ToolRegistry":
         """
             之所以写成带引号的 "ToolRegistry"，是因为它在类体内部引用了“当前这个类自己”。
@@ -101,4 +108,17 @@ class ToolRegistry:
         registry.register(ListExecSessionsTool(root=tool_root, sandbox_runner=runner))
         registry.register(WebSearchTool(root=tool_root))
         registry.register(WebFetchTool(root=tool_root))
+        if image_api_key:
+            registry.register(
+                ImageGenerationTool(
+                    workspace=tool_root,
+                    api_key=image_api_key,
+                    model=image_model,
+                    output_dir=tool_root / "my_agent" / "storage" / "generated-images",
+                    draw_url=image_draw_url,
+                    task_url_template=image_task_url_template,
+                    timeout_seconds=image_timeout_seconds,
+                    max_images_per_turn=image_max_images_per_turn,
+                )
+            )
         return registry

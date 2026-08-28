@@ -36,11 +36,16 @@ class AgentRunner:
     max_iterations: int = 6
     on_tool_call: Callable[[str, dict[str, Any]], None] | None = None
 
-    def run(self, messages: list[dict[str, Any]]) -> RunnerResult:
+    def run(
+        self,
+        messages: list[dict[str, Any]],
+        reference_images: list[str] | None = None,
+    ) -> RunnerResult:
         tool_schemas = self.tool_registry.list_schemas()
         # 复制一份当前上下文，后续工具循环只在这份工作副本上持续追加消息。
         follow_up_messages = list(messages)
         new_messages: list[ChatMessage] = []
+        generated_image_paths: list[str] = []
 
         for iteration in range(1, self.max_iterations + 1):
             logger.info(
@@ -53,6 +58,9 @@ class AgentRunner:
             response = self.provider.generate(list(follow_up_messages), tools=tool_schemas)
             if response.tool_call is None:
                 final_text = self._require_text(response)
+                final_text = self._append_generated_image_paths(
+                    final_text, generated_image_paths
+                )
                 logger.info(
                     "最终回复 iteration=%s preview=%s",
                     iteration,
@@ -70,13 +78,20 @@ class AgentRunner:
                     limit=200,
                 ),
             )
-            if self.on_tool_call is not None:
-                self.on_tool_call(response.tool_call.name, response.tool_call.arguments)
-            assistant_message = self._build_tool_call_message(response)
-            tool_result = self.tool_registry.execute(
+            tool_arguments = self._with_reference_images(
                 response.tool_call.name,
                 response.tool_call.arguments,
+                reference_images or [],
             )
+            if self.on_tool_call is not None:
+                self.on_tool_call(response.tool_call.name, tool_arguments)
+            assistant_message = self._build_tool_call_message(response, tool_arguments)
+            tool_result = self.tool_registry.execute(
+                response.tool_call.name,
+                tool_arguments,
+            )
+            if response.tool_call.name == "generate_image":
+                generated_image_paths.extend(self._generated_image_paths(tool_result))
             tool_message = ChatMessage(
                 role="tool",
                 content=tool_result,
@@ -99,7 +114,47 @@ class AgentRunner:
         return response.text
 
     @staticmethod
-    def _build_tool_call_message(response: ModelResponse) -> ChatMessage:
+    def _generated_image_paths(tool_result: str) -> list[str]:
+        """从工具结构化结果提取已保存图片，避免依赖模型自行复述路径。"""
+        try:
+            payload = json.loads(tool_result)
+        except json.JSONDecodeError:
+            return []
+        if not isinstance(payload, dict) or not isinstance(payload.get("artifacts"), list):
+            return []
+
+        paths: list[str] = []
+        for artifact in payload["artifacts"]:
+            if isinstance(artifact, dict) and isinstance(artifact.get("path"), str):
+                paths.append(artifact["path"])
+        return paths
+
+    @staticmethod
+    def _append_generated_image_paths(final_text: str, paths: list[str]) -> str:
+        missing_paths = list(dict.fromkeys(path for path in paths if path and path not in final_text))
+        if not missing_paths:
+            return final_text
+        rendered_paths = "\n".join(f"图片文件（绝对路径）：`{path}`" for path in missing_paths)
+        return f"{final_text.rstrip()}\n\n{rendered_paths}"
+
+    @staticmethod
+    def _with_reference_images(
+        tool_name: str,
+        arguments: dict[str, Any],
+        reference_images: list[str],
+    ) -> dict[str, Any]:
+        if tool_name != "generate_image" or not reference_images:
+            return arguments
+        existing = arguments.get("reference_images", [])
+        if not isinstance(existing, list) or not all(isinstance(path, str) for path in existing):
+            return arguments
+        paths = [path for path in [*reference_images, *existing] if path]
+        return {**arguments, "reference_images": list(dict.fromkeys(paths))}
+
+    @staticmethod
+    def _build_tool_call_message(
+        response: ModelResponse, arguments: dict[str, Any] | None = None
+    ) -> ChatMessage:
         if response.tool_call is None:
             raise ValueError("构造工具调用消息时，response.tool_call 不能为空")
         return ChatMessage(
@@ -111,10 +166,7 @@ class AgentRunner:
                     "type": "function",
                     "function": {
                         "name": response.tool_call.name,
-                        "arguments": json.dumps(
-                            response.tool_call.arguments,
-                            ensure_ascii=False,
-                        ),
+                        "arguments": json.dumps(arguments or response.tool_call.arguments, ensure_ascii=False),
                     },
                 }
             ],

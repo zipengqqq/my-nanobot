@@ -49,7 +49,10 @@ class AgentLoop:
             len(messages),
             _preview_text(self.context_builder.system_prompt),
         )
-        result = self.runner.run(messages)
+        reference_images = [
+            str(image.local_path) for image in images or [] if image.local_path is not None
+        ]
+        result = self.runner.run(messages, reference_images=reference_images)
 
         self.session_manager.append_messages(
             session_id,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True, slots=True)
@@ -9,3 +10,4 @@ class ImageAttachment:
 
     data: bytes
     mime_type: str
+    local_path: Path | None = None

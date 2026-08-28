@@ -22,7 +22,6 @@ class Settings(BaseSettings):
     openai_base_url: str = Field(validation_alias="OPENAI_BASE_URL")
     openai_api_key: str = Field(validation_alias="OPENAI_API_KEY")
     openai_model: str = Field(validation_alias="OPENAI_MODEL")
-    session_id: str = Field(validation_alias="MY_AGENT_SESSION_ID")
     history_limit: int = Field(validation_alias="MY_AGENT_HISTORY_LIMIT")
     session_storage_dir: Path = Field(
         default=DEFAULT_SESSION_STORAGE_DIR,
@@ -36,6 +35,28 @@ class Settings(BaseSettings):
     sandbox_wsl_user: str = Field(
         default_factory=lambda: os.environ.get("USERNAME", ""),
         validation_alias="MY_AGENT_SANDBOX_WSL_USER",
+    )
+    image_api_key: str | None = Field(default=None, validation_alias="MY_AGENT_IMAGE_API_KEY")
+    image_model: str = Field(default="gpt-image-2", validation_alias="MY_AGENT_IMAGE_MODEL")
+    image_draw_url: str = Field(
+        default="https://www.rightapi.ai/draw/v1/images/generations",
+        validation_alias="MY_AGENT_IMAGE_DRAW_URL",
+    )
+    image_task_url_template: str = Field(
+        default="https://www.rightapi.ai/v1/tasks",
+        validation_alias="MY_AGENT_IMAGE_TASK_URL_TEMPLATE",
+    )
+    image_timeout_seconds: float = Field(
+        default=120.0,
+        ge=1,
+        le=300,
+        validation_alias="MY_AGENT_IMAGE_TIMEOUT_SECONDS",
+    )
+    image_max_images_per_turn: int = Field(
+        default=1,
+        ge=1,
+        le=4,
+        validation_alias="MY_AGENT_IMAGE_MAX_IMAGES_PER_TURN",
     )
 
     @classmethod

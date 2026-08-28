@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -13,17 +14,20 @@ from my_agent.agent.provider import OpenAICompatProvider
 from my_agent.agent.runner import AgentRunner
 from my_agent.agent.skills import BUILTIN_SKILLS_DIR, SkillsLoader
 from my_agent.config import Settings, logger
-from my_agent.repl.input import prompt_with_images
+from my_agent.repl.input import persist_images, prompt_with_images
 from my_agent.sandbox import SandboxPolicy, SandboxRunner
 from my_agent.sandbox.wsl import WslBubblewrapBackend
 from my_agent.session.manager import SessionManager
 from my_agent.tools.registry import ToolRegistry
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 @dataclass(slots=True)
 class AppState:
     settings: Settings
     loop: AgentLoop
+    session_id: str
 
 
 @dataclass(slots=True)
@@ -73,7 +77,7 @@ def build_app(env_file: Path | str | None = None) -> AppState:
     返回:
         AppState: 包含 `settings` 和 `loop` 的运行时对象。
             CLI 启动后，真正处理用户输入的是 `loop`，
-            而 `settings` 则提供 session_id、history_limit 等配置。
+            而 `settings` 则提供 history_limit 等配置。
     """
 
     # 先把配置读出来，后面的所有组件都依赖这里的参数。
@@ -86,7 +90,7 @@ def build_app(env_file: Path | str | None = None) -> AppState:
     )
 
     # 接入最小默认工具集，但注册和执行仍留在 ToolRegistry 这一层。
-    workspace_root = Path.cwd().resolve()
+    workspace_root = PROJECT_ROOT
     sandbox_runner = SandboxRunner(
         policy=SandboxPolicy.required(workspace_root),
         backends=[
@@ -100,6 +104,12 @@ def build_app(env_file: Path | str | None = None) -> AppState:
         root=workspace_root,
         sandbox_runner=sandbox_runner,
         extra_read_roots=[BUILTIN_SKILLS_DIR],
+        image_api_key=settings.image_api_key,
+        image_model=settings.image_model,
+        image_draw_url=settings.image_draw_url,
+        image_task_url_template=settings.image_task_url_template,
+        image_timeout_seconds=settings.image_timeout_seconds,
+        image_max_images_per_turn=settings.image_max_images_per_turn,
     )
 
     # Provider 负责真正调用大模型接口
@@ -125,7 +135,11 @@ def build_app(env_file: Path | str | None = None) -> AppState:
         context_builder=context_builder,
         runner=runner,
     )
-    return AppState(settings=settings, loop=loop)
+    return AppState(
+        settings=settings,
+        loop=loop,
+        session_id=f"session-{uuid.uuid4().hex}",
+    )
 
 
 def run_repl(env_file: Path | str | None = None) -> None:
@@ -135,7 +149,7 @@ def run_repl(env_file: Path | str | None = None) -> None:
     runner = getattr(app_state.loop, "runner", None)
     if isinstance(runner, AgentRunner):
         runner.on_tool_call = trace_renderer.on_tool_call
-    logger.info("CLI 已启动 session_id=%s", app_state.settings.session_id)
+    logger.info("CLI 已启动 session_id=%s", app_state.session_id)
     print("my_codex 已启动，输入quit或exit退出")
 
     while True:
@@ -156,10 +170,21 @@ def run_repl(env_file: Path | str | None = None) -> None:
             logger.info("CLI 因用户退出命令结束")
             break
 
+        if images:
+            try:
+                images = persist_images(
+                    images,
+                    PROJECT_ROOT / "my_agent" / "storage" / "reference-images",
+                )
+            except OSError as exc:
+                logger.warning("无法保存本轮粘贴图片: %s", exc)
+                print("无法保存粘贴图片，本轮不能将其用作图像生成参考。")
+                continue
+
         logger.info("用户输入: %s", user_text)
         trace_renderer.start_turn()
         request = {
-            "session_id": app_state.settings.session_id,
+            "session_id": app_state.session_id,
             "user_text": user_text,
         }
         if images:

@@ -6,6 +6,7 @@ from my_agent.agent.context import ContextBuilder
 from my_agent.agent.media import ImageAttachment
 from my_agent.agent.runner import AgentRunner
 from my_agent.config import logger
+from my_agent.memory.store import MemoryStore
 from my_agent.session.manager import SessionManager
 from my_agent.session.models import ChatMessage
 
@@ -23,6 +24,7 @@ class AgentLoop:
     session_manager: SessionManager
     context_builder: ContextBuilder
     runner: AgentRunner
+    memory_store: MemoryStore | None = None
 
     def handle_user_message(
         self,
@@ -58,6 +60,11 @@ class AgentLoop:
             session_id,
             [ChatMessage(role="user", content=user_text), *result.new_messages],
         )
+        if self.memory_store is not None:
+            try:
+                self.memory_store.append_turn(user_text, result.final_text)
+            except OSError as exc:
+                logger.warning("无法归档本轮长期记忆: %s", exc)
         logger.info(
             "本轮处理完成 session=%s persisted_messages=%s final_reply=%s",
             session_id,

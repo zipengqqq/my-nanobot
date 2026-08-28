@@ -28,6 +28,12 @@ class Settings(BaseSettings):
         validation_alias="MY_AGENT_SESSION_STORAGE_DIR",
     )
     max_iterations: int = Field(default=6, validation_alias="MY_AGENT_MAX_ITERATIONS")
+    dream_enabled: bool = Field(default=True, validation_alias="MY_AGENT_DREAM_ENABLED")
+    dream_interval_hours: float = Field(
+        default=2.0,
+        gt=0,
+        validation_alias="MY_AGENT_DREAM_INTERVAL_HOURS",
+    )
     sandbox_wsl_distro: str = Field(
         default="Ubuntu",
         validation_alias="MY_AGENT_SANDBOX_WSL_DISTRO",

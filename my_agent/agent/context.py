@@ -5,6 +5,7 @@ from typing import Any
 
 from my_agent.agent.media import ImageAttachment
 from my_agent.agent.skills import SkillsLoader
+from my_agent.memory.store import MemoryStore
 from my_agent.session.models import ChatMessage
 
 
@@ -15,27 +16,38 @@ class ContextBuilder:
         self,
         system_prompt: str = "你是一个命令行 agent 助手。",
         skills: SkillsLoader | None = None,
+        memory_store: MemoryStore | None = None,
     ) -> None:
         self._system_prompt = system_prompt
         self._skills = skills
+        self._memory_store = memory_store
 
     @property
     def system_prompt(self) -> str:
         return self._system_prompt
 
     def build_system_prompt(self) -> str:
-        if self._skills is None:
-            return self._system_prompt
-        skills_summary = self._skills.build_summary()
-        if not skills_summary:
-            return self._system_prompt
-        return (
-            f"{self._system_prompt}\n\n"
-            "# Skills\n\n"
-            "The following skills extend your capabilities. Before using a skill, "
-            "read its SKILL.md with read_file and follow its instructions.\n\n"
-            f"{skills_summary}"
-        )
+        parts = [self._system_prompt]
+        if self._memory_store is not None:
+            for name, content in (
+                ("SOUL.md", self._memory_store.read_soul()),
+                ("USER.md", self._memory_store.read_user()),
+            ):
+                if content:
+                    parts.append(f"## {name}\n\n{content}")
+            memory = self._memory_store.read_memory()
+            if memory:
+                parts.append(f"# Long-term Memory\n{memory}")
+        if self._skills is not None:
+            skills_summary = self._skills.build_summary()
+            if skills_summary:
+                parts.append(
+                    "# Skills\n\n"
+                    "The following skills extend your capabilities. Before using a skill, "
+                    "read its SKILL.md with read_file and follow its instructions.\n\n"
+                    f"{skills_summary}"
+                )
+        return "\n\n".join(parts)
 
     def build_messages(
         self,

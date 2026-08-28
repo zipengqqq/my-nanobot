@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
+from queue import Empty, Queue
 
 from rich.console import Console
 from rich.markdown import Markdown
@@ -13,7 +14,11 @@ from my_agent.agent.loop import AgentLoop
 from my_agent.agent.provider import OpenAICompatProvider
 from my_agent.agent.runner import AgentRunner
 from my_agent.agent.skills import BUILTIN_SKILLS_DIR, SkillsLoader
+from my_agent.command.builtin import register_builtin_commands
+from my_agent.command.router import CommandRouter
 from my_agent.config import Settings, logger
+from my_agent.memory.dream import DreamResult, DreamScheduler, DreamService
+from my_agent.memory.store import MemoryStore
 from my_agent.repl.input import persist_images, prompt_with_images
 from my_agent.sandbox import SandboxPolicy, SandboxRunner
 from my_agent.sandbox.wsl import WslBubblewrapBackend
@@ -28,6 +33,9 @@ class AppState:
     settings: Settings
     loop: AgentLoop
     session_id: str
+    command_router: CommandRouter
+    background_messages: Queue[str]
+    dream_scheduler: DreamScheduler | None
 
 
 @dataclass(slots=True)
@@ -119,8 +127,16 @@ def build_app(env_file: Path | str | None = None) -> AppState:
         model=settings.openai_model,
     )
 
+    memory_store = MemoryStore(
+        PROJECT_ROOT / "my_agent" / "storage",
+        template_path=PROJECT_ROOT / "my_agent" / "templates" / "memory" / "MEMORY.md",
+    )
+
     # ContextBuilder 负责把 system prompt、history、user message 组装成 messages。
-    context_builder = ContextBuilder(skills=SkillsLoader(workspace=workspace_root))
+    context_builder = ContextBuilder(
+        skills=SkillsLoader(workspace=workspace_root),
+        memory_store=memory_store,
+    )
 
     # AgentRunner 只关心“拿到 messages 以后如何调 provider”。
     runner = AgentRunner(
@@ -134,11 +150,36 @@ def build_app(env_file: Path | str | None = None) -> AppState:
         session_manager=session_manager,
         context_builder=context_builder,
         runner=runner,
+        memory_store=memory_store,
+    )
+    background_messages: Queue[str] = Queue()
+
+    def on_dream_complete(result: DreamResult) -> None:
+        background_messages.put(result.message)
+
+    dream_service = DreamService(
+        store=memory_store,
+        provider=provider,
+        max_iterations=settings.max_iterations,
+    )
+    command_router = CommandRouter()
+    register_builtin_commands(command_router, dream_service, on_dream_complete)
+    dream_scheduler = (
+        DreamScheduler(
+            service=dream_service,
+            interval_hours=settings.dream_interval_hours,
+            on_complete=on_dream_complete,
+        )
+        if settings.dream_enabled
+        else None
     )
     return AppState(
         settings=settings,
         loop=loop,
         session_id=f"session-{uuid.uuid4().hex}",
+        command_router=command_router,
+        background_messages=background_messages,
+        dream_scheduler=dream_scheduler,
     )
 
 
@@ -150,49 +191,73 @@ def run_repl(env_file: Path | str | None = None) -> None:
     if isinstance(runner, AgentRunner):
         runner.on_tool_call = trace_renderer.on_tool_call
     logger.info("CLI 已启动 session_id=%s", app_state.session_id)
-    print("my_codex 已启动，输入quit、exit或/exit退出")
+    print("my_codex 已启动，输入 quit 或 exit 退出")
 
-    while True:
-        try:
-            user_text, images = prompt_with_images("你> ")
-        except EOFError:
-            logger.info("CLI 因 EOF 退出")
-            print()
-            break
-        except KeyboardInterrupt:
-            logger.info("CLI 因键盘中断退出")
-            print("\n已退出")
-            break
-
-        if not user_text:
-            continue
-        if user_text.lower() in {"quit", "exit", "/exit"}:
-            logger.info("CLI 因用户退出命令结束")
-            break
-
-        if images:
+    if app_state.dream_scheduler is not None:
+        app_state.dream_scheduler.start()
+    try:
+        while True:
+            _render_background_messages(console, app_state.background_messages)
             try:
-                images = persist_images(
-                    images,
-                    PROJECT_ROOT / "my_agent" / "storage" / "reference-images",
-                )
-            except OSError as exc:
-                logger.warning("无法保存本轮粘贴图片: %s", exc)
-                print("无法保存粘贴图片，本轮不能将其用作图像生成参考。")
+                user_text, images = prompt_with_images("你> ")
+            except EOFError:
+                logger.info("CLI 因 EOF 退出")
+                print()
+                break
+            except KeyboardInterrupt:
+                logger.info("CLI 因键盘中断退出")
+                print("\n已退出")
+                break
+
+            if not user_text:
+                continue
+            command_result = app_state.command_router.dispatch(user_text)
+            if command_result.handled:
+                if command_result.reply:
+                    console.print(Text("system> "), end="")
+                    render_markdown_reply(console, command_result.reply)
+                if command_result.should_exit:
+                    logger.info("CLI 因用户退出命令结束")
+                    break
                 continue
 
-        logger.info("用户输入: %s", user_text)
-        trace_renderer.start_turn()
-        request = {
-            "session_id": app_state.session_id,
-            "user_text": user_text,
-        }
-        if images:
-            request["images"] = images
-        reply = app_state.loop.handle_user_message(**request)
-        logger.info("助手回复: %s", reply)
-        console.print(Text("assistant> "), end="")
-        render_markdown_reply(console, reply)
+            if images:
+                try:
+                    images = persist_images(
+                        images,
+                        PROJECT_ROOT / "my_agent" / "storage" / "reference-images",
+                    )
+                except OSError as exc:
+                    logger.warning("无法保存本轮粘贴图片: %s", exc)
+                    print("无法保存粘贴图片，本轮不能将其用作图像生成参考。")
+                    continue
+
+            logger.info("用户输入: %s", user_text)
+            trace_renderer.start_turn()
+            request = {
+                "session_id": app_state.session_id,
+                "user_text": user_text,
+            }
+            if images:
+                request["images"] = images
+            reply = app_state.loop.handle_user_message(**request)
+            logger.info("助手回复: %s", reply)
+            console.print(Text("assistant> "), end="")
+            render_markdown_reply(console, reply)
+            _render_background_messages(console, app_state.background_messages)
+    finally:
+        if app_state.dream_scheduler is not None:
+            app_state.dream_scheduler.stop()
+
+
+def _render_background_messages(console: Console, messages: Queue[str]) -> None:
+    while True:
+        try:
+            message = messages.get_nowait()
+        except Empty:
+            return
+        console.print(Text("system> "), end="")
+        render_markdown_reply(console, message)
 
 
 def main() -> None:

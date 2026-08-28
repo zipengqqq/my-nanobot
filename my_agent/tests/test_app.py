@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from queue import Queue
 from types import SimpleNamespace
 
 import my_agent.app as app_module
+from my_agent.command.builtin import register_builtin_commands
+from my_agent.command.router import CommandRouter
+from my_agent.memory.dream import DreamResult
 from my_agent.tools.image_generation_tool import ImageGenerationTool
 
 
@@ -14,11 +18,98 @@ def test_run_repl_exits_for_slash_exit_without_calling_agent(monkeypatch) -> Non
         def handle_user_message(self, **_request: object) -> str:
             raise AssertionError("/exit must be handled by the REPL before calling the agent")
 
-    app_state = SimpleNamespace(loop=Loop(), session_id="test-session")
+    class DreamService:
+        def start(self, on_complete) -> DreamResult:
+            return DreamResult(status="running", message="Dreaming...")
+
+    router = CommandRouter()
+    register_builtin_commands(router, DreamService(), lambda _result: None)
+    app_state = SimpleNamespace(
+        loop=Loop(),
+        session_id="test-session",
+        command_router=router,
+        background_messages=Queue(),
+        dream_scheduler=None,
+    )
     monkeypatch.setattr(app_module, "build_app", lambda env_file=None: app_state)
     monkeypatch.setattr(app_module, "prompt_with_images", lambda _prompt: ("/exit", []))
 
     app_module.run_repl()
+
+
+def test_run_repl_handles_dream_command_without_calling_agent(monkeypatch) -> None:
+    class Loop:
+        runner = None
+
+        def handle_user_message(self, **_request: object) -> str:
+            raise AssertionError("/dream must be handled by the command router")
+
+    class DreamService:
+        def __init__(self) -> None:
+            self.started = False
+
+        def start(self, on_complete) -> DreamResult:
+            self.started = True
+            return DreamResult(status="running", message="Dreaming...")
+
+    service = DreamService()
+    router = CommandRouter()
+    register_builtin_commands(router, service, lambda _result: None)
+    app_state = SimpleNamespace(
+        loop=Loop(),
+        session_id="test-session",
+        command_router=router,
+        background_messages=Queue(),
+        dream_scheduler=None,
+    )
+    prompts = iter([("/dream", []), ("/exit", [])])
+    monkeypatch.setattr(app_module, "build_app", lambda env_file=None: app_state)
+    monkeypatch.setattr(app_module, "prompt_with_images", lambda _prompt: next(prompts))
+
+    app_module.run_repl()
+
+    assert service.started is True
+
+
+def test_run_repl_stops_dream_scheduler_when_exit_command_is_received(monkeypatch) -> None:
+    class Loop:
+        runner = None
+
+        def handle_user_message(self, **_request: object) -> str:
+            raise AssertionError("/exit must not be sent to the agent")
+
+    class DreamService:
+        def start(self, on_complete) -> DreamResult:
+            return DreamResult(status="running", message="Dreaming...")
+
+    class Scheduler:
+        def __init__(self) -> None:
+            self.started = False
+            self.stopped = False
+
+        def start(self) -> None:
+            self.started = True
+
+        def stop(self) -> None:
+            self.stopped = True
+
+    router = CommandRouter()
+    register_builtin_commands(router, DreamService(), lambda _result: None)
+    scheduler = Scheduler()
+    app_state = SimpleNamespace(
+        loop=Loop(),
+        session_id="test-session",
+        command_router=router,
+        background_messages=Queue(),
+        dream_scheduler=scheduler,
+    )
+    monkeypatch.setattr(app_module, "build_app", lambda env_file=None: app_state)
+    monkeypatch.setattr(app_module, "prompt_with_images", lambda _prompt: ("/exit", []))
+
+    app_module.run_repl()
+
+    assert scheduler.started is True
+    assert scheduler.stopped is True
 
 
 def test_build_app_uses_project_root_when_started_from_my_agent_directory(

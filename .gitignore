@@ -26,6 +26,9 @@ my_agent/storage/
 tmp/
 temp/
 
+# Local documentation materials
+docs/superpowers/
+
 # Editor and operating-system files
 .idea/
 .vscode/

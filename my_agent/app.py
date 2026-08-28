@@ -150,7 +150,7 @@ def run_repl(env_file: Path | str | None = None) -> None:
     if isinstance(runner, AgentRunner):
         runner.on_tool_call = trace_renderer.on_tool_call
     logger.info("CLI 已启动 session_id=%s", app_state.session_id)
-    print("my_codex 已启动，输入quit或exit退出")
+    print("my_codex 已启动，输入quit、exit或/exit退出")
 
     while True:
         try:
@@ -166,7 +166,7 @@ def run_repl(env_file: Path | str | None = None) -> None:
 
         if not user_text:
             continue
-        if user_text.lower() in {"quit", "exit"}:
+        if user_text.lower() in {"quit", "exit", "/exit"}:
             logger.info("CLI 因用户退出命令结束")
             break
 

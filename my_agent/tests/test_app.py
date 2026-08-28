@@ -1,9 +1,24 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import my_agent.app as app_module
 from my_agent.tools.image_generation_tool import ImageGenerationTool
+
+
+def test_run_repl_exits_for_slash_exit_without_calling_agent(monkeypatch) -> None:
+    class Loop:
+        runner = None
+
+        def handle_user_message(self, **_request: object) -> str:
+            raise AssertionError("/exit must be handled by the REPL before calling the agent")
+
+    app_state = SimpleNamespace(loop=Loop(), session_id="test-session")
+    monkeypatch.setattr(app_module, "build_app", lambda env_file=None: app_state)
+    monkeypatch.setattr(app_module, "prompt_with_images", lambda _prompt: ("/exit", []))
+
+    app_module.run_repl()
 
 
 def test_build_app_uses_project_root_when_started_from_my_agent_directory(

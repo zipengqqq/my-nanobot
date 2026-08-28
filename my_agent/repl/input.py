@@ -32,7 +32,7 @@ class ClipboardImageReader:
 
     grabclipboard: Callable[[], Any] | None = None
 
-    def read_image(self) -> ImageAttachment | None:
+    def read_images(self) -> list[ImageAttachment]:
         grab = self.grabclipboard
         if grab is None:
             try:
@@ -40,16 +40,27 @@ class ClipboardImageReader:
 
                 grab = ImageGrab.grabclipboard
             except (ImportError, OSError):
-                return None
+                return []
         try:
             value = grab()
         except OSError:
-            return None
-        if not isinstance(value, Image.Image):
-            return None
-        output = BytesIO()
-        value.save(output, format="PNG")
-        return ImageAttachment(data=output.getvalue(), mime_type="image/png")
+            return []
+        if isinstance(value, Image.Image):
+            output = BytesIO()
+            value.save(output, format="PNG")
+            return [ImageAttachment(data=output.getvalue(), mime_type="image/png")]
+        if isinstance(value, list):
+            return [
+                image
+                for value_path in value
+                if isinstance(value_path, (str, Path))
+                and (image := _load_local_image_path(Path(value_path))) is not None
+            ]
+        return []
+
+    def read_image(self) -> ImageAttachment | None:
+        images = self.read_images()
+        return images[0] if images else None
 
 
 @dataclass(slots=True)
@@ -140,9 +151,9 @@ def handle_clipboard_paste(
     paste_mode: Any,
 ) -> None:
     """优先将剪贴板图片作为本轮附件；否则使用终端默认文本粘贴。"""
-    image = reader.read_image()
-    if image is not None:
-        event.current_buffer.insert_text(state.add_image(image))
+    images = reader.read_images()
+    if images:
+        event.current_buffer.insert_text("".join(state.add_image(image) for image in images))
         return
     event.current_buffer.paste_clipboard_data(
         event.app.clipboard.get_data(), paste_mode=paste_mode
@@ -155,9 +166,9 @@ def handle_bracketed_paste(
     state: ReplInputState,
 ) -> None:
     """处理终端宿主转发的粘贴事件，并优先识别剪贴板图片。"""
-    image = reader.read_image()
-    if image is not None:
-        event.current_buffer.insert_text(state.add_image(image))
+    images = reader.read_images()
+    if images:
+        event.current_buffer.insert_text("".join(state.add_image(image) for image in images))
         return
     insert_pasted_text(event, state)
 

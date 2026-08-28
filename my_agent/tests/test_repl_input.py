@@ -4,9 +4,11 @@ from PIL import Image
 
 from my_agent.agent.media import ImageAttachment
 from my_agent.repl.input import (
+    ClipboardImageReader,
     ReplInputState,
     _finalize_user_text,
     handle_bracketed_paste,
+    handle_clipboard_paste,
     persist_images,
 )
 
@@ -28,7 +30,7 @@ def test_bracketed_paste_attaches_clipboard_image() -> None:
     image = ImageAttachment(data=b"image-bytes", mime_type="image/png")
     buffer = type("Buffer", (), {"text": "", "insert_text": lambda self, text: setattr(self, "text", self.text + text)})()
     event = type("Event", (), {"data": "", "current_buffer": buffer})()
-    reader = type("Reader", (), {"read_image": lambda self: image})()
+    reader = type("Reader", (), {"read_images": lambda self: [image]})()
     state = ReplInputState()
 
     handle_bracketed_paste(event, reader, state)
@@ -45,5 +47,38 @@ def test_finalize_user_text_attaches_local_windows_image_path(tmp_path) -> None:
     text = _finalize_user_text(f"{image_path} generate a poster", state)
 
     assert text == "[Image #1] generate a poster"
+    assert len(state.images) == 1
+    assert state.images[0].mime_type == "image/png"
+
+
+def test_clipboard_image_file_path_inserts_placeholder_immediately(tmp_path) -> None:
+    image_path = tmp_path / "desktop-copy.png"
+    Image.new("RGB", (1, 1), color="white").save(image_path)
+
+    class Buffer:
+        text = ""
+
+        def insert_text(self, text: str) -> None:
+            self.text += text
+
+        def paste_clipboard_data(self, data, *, paste_mode) -> None:
+            self.insert_text(data.text)
+
+    class Clipboard:
+        def get_data(self):
+            return type("ClipboardData", (), {"text": str(image_path)})()
+
+    buffer = Buffer()
+    event = type(
+        "Event",
+        (),
+        {"app": type("App", (), {"clipboard": Clipboard()})(), "current_buffer": buffer},
+    )()
+    reader = ClipboardImageReader(grabclipboard=lambda: [str(image_path)])
+    state = ReplInputState()
+
+    handle_clipboard_paste(event, reader, state, paste_mode=None)
+
+    assert buffer.text == "[Image #1]"
     assert len(state.images) == 1
     assert state.images[0].mime_type == "image/png"

@@ -28,6 +28,7 @@ temp/
 
 # Local documentation materials
 docs/superpowers/
+.worktrees/
 
 # Editor and operating-system files
 .idea/

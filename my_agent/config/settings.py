@@ -28,6 +28,12 @@ class Settings(BaseSettings):
         validation_alias="MY_AGENT_SESSION_STORAGE_DIR",
     )
     max_iterations: int = Field(default=6, validation_alias="MY_AGENT_MAX_ITERATIONS")
+    subagent_max_result_chars: int = Field(
+        default=6000,
+        ge=256,
+        le=20000,
+        validation_alias="MY_AGENT_SUBAGENT_MAX_RESULT_CHARS",
+    )
     dream_enabled: bool = Field(default=True, validation_alias="MY_AGENT_DREAM_ENABLED")
     dream_interval_hours: float = Field(
         default=2.0,

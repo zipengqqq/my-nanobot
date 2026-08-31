@@ -9,6 +9,7 @@ from my_agent.command.builtin import register_builtin_commands
 from my_agent.command.router import CommandRouter
 from my_agent.memory.dream import DreamResult
 from my_agent.tools.image_generation_tool import ImageGenerationTool
+from my_agent.tools.spawn_subagent_tool import SpawnSubagentTool
 
 
 def test_run_repl_exits_for_slash_exit_without_calling_agent(monkeypatch) -> None:
@@ -148,3 +149,22 @@ def test_build_app_creates_a_new_session_for_each_start(tmp_path: Path, monkeypa
 
     assert first_start.session_id != second_start.session_id
     assert first_start.session_id != "legacy-session"
+
+
+def test_build_app_registers_subagent_tool_and_reads_result_limit(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://api.example.test/v1")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_MODEL", "test-model")
+    monkeypatch.setenv("MY_AGENT_HISTORY_LIMIT", "10")
+    monkeypatch.setenv("MY_AGENT_SESSION_STORAGE_DIR", str(tmp_path / "sessions"))
+    monkeypatch.setenv("MY_AGENT_SUBAGENT_MAX_RESULT_CHARS", "512")
+
+    app_state = app_module.build_app()
+
+    assert app_state.settings.subagent_max_result_chars == 512
+    assert isinstance(
+        app_state.loop.runner.tool_registry.get("spawn_subagent"),
+        SpawnSubagentTool,
+    )

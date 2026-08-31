@@ -14,6 +14,7 @@ from my_agent.agent.loop import AgentLoop
 from my_agent.agent.provider import OpenAICompatProvider
 from my_agent.agent.runner import AgentRunner
 from my_agent.agent.skills import BUILTIN_SKILLS_DIR, SkillsLoader
+from my_agent.agent.subagent import SubagentManager
 from my_agent.command.builtin import register_builtin_commands
 from my_agent.command.router import CommandRouter
 from my_agent.config import Settings, logger
@@ -24,6 +25,7 @@ from my_agent.sandbox import SandboxPolicy, SandboxRunner
 from my_agent.sandbox.wsl import WslBubblewrapBackend
 from my_agent.session.manager import SessionManager
 from my_agent.tools.registry import ToolRegistry
+from my_agent.tools.spawn_subagent_tool import SpawnSubagentTool
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -126,6 +128,21 @@ def build_app(env_file: Path | str | None = None) -> AppState:
         api_key=settings.openai_api_key,
         model=settings.openai_model,
     )
+    subagent_manager = SubagentManager(
+        provider=provider,
+        workspace=workspace_root,
+        sandbox_runner=sandbox_runner,
+        max_iterations=settings.max_iterations,
+        max_result_chars=settings.subagent_max_result_chars,
+        extra_read_roots=(BUILTIN_SKILLS_DIR,),
+        image_api_key=settings.image_api_key,
+        image_model=settings.image_model,
+        image_draw_url=settings.image_draw_url,
+        image_task_url_template=settings.image_task_url_template,
+        image_timeout_seconds=settings.image_timeout_seconds,
+        image_max_images_per_turn=settings.image_max_images_per_turn,
+    )
+    tool_registry.register(SpawnSubagentTool(subagent_manager))
 
     memory_store = MemoryStore(
         PROJECT_ROOT / "my_agent" / "storage",
